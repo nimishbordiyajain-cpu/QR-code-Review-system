@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // User profile documents
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId);
+    }
+    
+    // Business profile documents
+    match /businesses/{businessId} {
+      // Publicly readable for customer QR scan flow & business resolution
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+    }
+    
+    // QR Code records
+    match /qrCodes/{qrId} {
+      // Publicly readable so customers can resolve QR context
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated();
+    }
+    
+    // Customer Feedback records
+    match /feedback/{feedbackId} {
+      // Any customer can submit feedback without login
+      allow create: if true;
+      // Only authenticated business owners can read/manage their feedback
+      allow read, update, delete: if isAuthenticated();
+    }
+    
+    // Google Review link click tracking
+    match /reviewClicks/{clickId} {
+      allow create: if true;
+      allow read: if isAuthenticated();
+    }
+    
+    // Daily usage tracking
+    match /dailyUsage/{usageId} {
+      allow read, write: if true;
+    }
+  }
+}
