@@ -74,8 +74,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       a: 'Yes! Our built-in QR generator creates printable table tent cards, counter standees, and downloadable PNGs with one click. No paid QR generator subscription needed.',
     },
     {
-      q: 'Is there any cost during the MVP version?',
-      a: 'ReviewFlow is completely free during MVP development, with up to 50 AI review drafts per day per business using free-tier infrastructure.',
+      q: 'Is there any cost to get started?',
+      a: 'ReviewFlow AI is free to start, with up to 50 AI review drafts per day per business on our standard plan.',
     },
   ];
 
@@ -134,7 +134,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </div>
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>100% Free MVP Plan</span>
+                <span>Free Starter Plan</span>
               </div>
             </div>
           </div>
@@ -492,7 +492,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             Ready to Turn Customer Visits into Authentic 5-Star Reviews?
           </h2>
           <p className="text-indigo-100 text-sm sm:text-base max-w-xl mx-auto">
-            Set up your business profile in under 2 minutes. Free MVP tier available.
+            Set up your business profile in under 2 minutes. Free starter tier available.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button

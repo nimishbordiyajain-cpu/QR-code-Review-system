@@ -81,18 +81,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs">
-      {/* MVP Free Version banner */}
-      <div className="bg-slate-900 text-slate-200 px-4 py-1 text-[11px] font-medium text-center flex items-center justify-center gap-2 border-b border-slate-800">
-        <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.2 rounded text-[10px] font-bold uppercase tracking-wider">
-          MVP FREE VERSION
-        </span>
-        <span className="truncate">Zero-cost AI review assistance & genuine customer feedback platform</span>
-        {isDemoMode && (
-          <span className="bg-amber-400 text-slate-950 font-extrabold px-1.5 py-0.2 rounded text-[9px] uppercase ml-1 animate-pulse">
-            Demo Mode Active
-          </span>
-        )}
-      </div>
+      {/* Demo Mode Notice when active */}
+      {isDemoMode && (
+        <div className="bg-amber-500 text-slate-950 px-4 py-1 text-[11px] font-bold text-center flex items-center justify-center gap-2 border-b border-amber-600">
+          <span className="uppercase tracking-wider">Demo Mode Active</span>
+          <span className="font-medium text-slate-900">• Testing sample Café feedback and QR generation</span>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6">
         <div className="flex items-center justify-between h-14">

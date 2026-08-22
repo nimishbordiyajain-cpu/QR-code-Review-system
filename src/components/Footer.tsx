@@ -92,7 +92,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onStartDemo }) => {
                 </button>
               </li>
               <li>
-                <span className="text-slate-500">Free MVP Tier (50 AI Gens/Day)</span>
+                <span className="text-slate-500">Free Tier (50 AI Gens/Day)</span>
               </li>
             </ul>
           </div>

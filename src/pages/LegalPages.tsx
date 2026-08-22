@@ -102,7 +102,7 @@ export const TermsPage: React.FC<LegalPageProps> = ({ onNavigate }) => {
 
           <h3 className="text-sm font-bold text-slate-900">3. Usage Limitations</h3>
           <p>
-            During the MVP Free tier, businesses are granted up to 50 AI review drafts per day. ReviewFlow AI reserves the right to rate-limit or suspend accounts that violate ethical review policies.
+            Under the standard free tier, businesses are granted up to 50 AI review drafts per day. ReviewFlow AI reserves the right to rate-limit or suspend accounts that violate ethical review policies.
           </p>
         </div>
       </div>

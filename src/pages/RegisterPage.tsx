@@ -276,7 +276,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
 
           <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-1">
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Free MVP tier includes 50 AI review drafts per day. No credit card required.</span>
+            <span>Free starter tier includes 50 AI review drafts per day. No credit card required.</span>
           </div>
 
           <button

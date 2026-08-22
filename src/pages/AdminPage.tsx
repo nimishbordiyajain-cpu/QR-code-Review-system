@@ -118,7 +118,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onNavigate }) => {
           </div>
           <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs space-y-0.5">
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Platform Tier</span>
-            <div className="text-lg font-black text-slate-900">MVP Free</div>
+            <div className="text-lg font-black text-slate-900">Standard Plan</div>
           </div>
         </div>
 
