@@ -61,23 +61,50 @@ export async function getBusinessByOwnerId(ownerId: string): Promise<BusinessPro
 
 export async function getBusinessBySlug(slug: string): Promise<BusinessProfile | null> {
   try {
+    const cleanSlug = slug.toLowerCase().trim();
+
+    // 1. Direct slug match
     const q = query(
       collection(db, 'businesses'),
-      where('slug', '==', slug),
+      where('slug', '==', cleanSlug),
       limit(1)
     );
     const snap = await getDocs(q);
     if (!snap.empty) {
       return snap.docs[0].data() as BusinessProfile;
     }
-    // Fallback: check if slug matches businessId
+
+    // 2. Direct document ID match
     const docSnap = await getDoc(doc(db, 'businesses', slug));
     if (docSnap.exists()) {
       return docSnap.data() as BusinessProfile;
     }
+
+    // 3. Fallback: Search all businesses if prefix/name matches (e.g. mudit-traders vs mudit-traders-abcd)
+    const allSnap = await getDocs(collection(db, 'businesses'));
+    if (!allSnap.empty) {
+      for (const d of allSnap.docs) {
+        const data = d.data() as BusinessProfile;
+        if (
+          data.slug === cleanSlug ||
+          data.id === slug ||
+          (data.slug && data.slug.startsWith(cleanSlug)) ||
+          (data.name && generateSlug(data.name) === cleanSlug)
+        ) {
+          return data;
+        }
+      }
+    }
+
     return null;
   } catch (error) {
     console.error('Error fetching business by slug:', error);
+    try {
+      const docSnap = await getDoc(doc(db, 'businesses', slug));
+      if (docSnap.exists()) {
+        return docSnap.data() as BusinessProfile;
+      }
+    } catch (e) {}
     return null;
   }
 }

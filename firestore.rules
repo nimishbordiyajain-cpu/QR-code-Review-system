@@ -29,7 +29,9 @@ service cloud.firestore {
     match /qrCodes/{qrId} {
       // Publicly readable so customers can resolve QR context
       allow read: if true;
-      allow create, update, delete: if isAuthenticated();
+      allow create, delete: if isAuthenticated();
+      // Publicly allow updates for scanCount and totalFeedbacks increments from customer QR scans
+      allow update: if true;
     }
     
     // Customer Feedback records

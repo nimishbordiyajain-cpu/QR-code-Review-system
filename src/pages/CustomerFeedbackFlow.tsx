@@ -47,6 +47,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
 
   // Flow Steps: 1: Rating, 2: Categories, 3: Optional Text & Private, 4: AI Drafts & Google
   const [step, setStep] = useState<number>(1);
+  const [previousStep, setPreviousStep] = useState<number>(1);
 
   // Customer Form State
   const [rating, setRating] = useState<number>(0);
@@ -144,29 +145,34 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
 
   const handleGenerateAIDrafts = async () => {
     if (!business || rating === 0) return;
+    setPreviousStep(step);
     setGeneratingDrafts(true);
     setStep(4);
 
     try {
-      // 1. Submit initial feedback record to Firestore
+      // 1. Submit initial feedback record to Firestore (non-blocking)
       let savedFbId = submittedFeedbackId;
       if (!savedFbId && !isDemo) {
-        const newFb = await submitCustomerFeedback({
-          businessId: business.id,
-          qrId: qrCode?.id,
-          qrLocationName: qrCode?.name || qrCode?.location,
-          rating,
-          selectedCategories: selectedChips,
-          customerComment: customerComment.trim() || undefined,
-          privateFeedback: privateFeedback.trim() || undefined,
-          customerName: isAnonymous ? undefined : customerName.trim() || undefined,
-          isAnonymous,
-        });
-        savedFbId = newFb.id;
-        setSubmittedFeedbackId(newFb.id);
+        try {
+          const newFb = await submitCustomerFeedback({
+            businessId: business.id,
+            qrId: qrCode?.id,
+            qrLocationName: qrCode?.name || qrCode?.location,
+            rating,
+            selectedCategories: selectedChips,
+            customerComment: customerComment.trim() || undefined,
+            privateFeedback: privateFeedback.trim() || undefined,
+            customerName: isAnonymous ? undefined : customerName.trim() || undefined,
+            isAnonymous,
+          });
+          savedFbId = newFb.id;
+          setSubmittedFeedbackId(newFb.id);
+        } catch (e) {
+          console.warn('Feedback save warning (proceeding with reviews):', e);
+        }
       }
 
-      // 2. Generate 5 Review Drafts via Gemini API server route
+      // 2. Generate 5 Review Drafts
       const res = await generateReviewDrafts({
         businessId: business.id,
         businessName: business.name,
@@ -177,9 +183,8 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
         customerName: isAnonymous ? undefined : customerName.trim(),
       });
 
-      if (res.success && res.drafts.length > 0) {
+      if (res && res.drafts && res.drafts.length > 0) {
         setAiDrafts(res.drafts);
-        // Default to the first draft
         setSelectedDraftId(res.drafts[0].id);
         setActiveDraftText(res.drafts[0].content);
       }
@@ -330,15 +335,29 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
               />
             </div>
 
-            <button
-              id="step-1-continue-btn"
-              disabled={rating === 0}
-              onClick={() => setStep(2)}
-              className="w-full py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-            >
-              <span>Continue to Experience Details</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            <div className="space-y-2 pt-1">
+              {/* Primary Instant AI Review Options */}
+              <button
+                id="step-1-instant-ai-btn"
+                disabled={rating === 0}
+                onClick={handleGenerateAIDrafts}
+                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-indigo-200" />
+                <span>Get 5 AI Review Suggestions Now</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Secondary Details button */}
+              <button
+                id="step-1-details-btn"
+                disabled={rating === 0}
+                onClick={() => setStep(2)}
+                className="w-full py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs border border-slate-200 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <span>Add Specific Details & Tags (Optional)</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -396,14 +415,25 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
               })}
             </div>
 
-            <button
-              id="step-2-continue-btn"
-              onClick={() => setStep(3)}
-              className="w-full py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5"
-            >
-              <span>Continue (Optional Notes)</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            <div className="space-y-2 pt-1">
+              <button
+                id="step-2-instant-review-btn"
+                onClick={handleGenerateAIDrafts}
+                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-indigo-200" />
+                <span>Get AI Review Suggestions</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                id="step-2-continue-btn"
+                onClick={() => setStep(3)}
+                className="w-full py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs border border-slate-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>Add Private Notes / Written Comment (Optional)</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -532,7 +562,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
                     </p>
                   </div>
                   <button
-                    onClick={() => setStep(3)}
+                    onClick={() => setStep(previousStep || 1)}
                     className="text-xs text-slate-400 hover:text-slate-700 flex items-center gap-1 font-semibold"
                   >
                     <ArrowLeft className="w-3 h-3" />
