@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { CustomerFeedback } from '../types';
+import { sanitizeForFirestore } from '../utils/firestoreSanitizer';
 
 export async function submitCustomerFeedback(
   feedbackData: Omit<CustomerFeedback, 'id' | 'createdAt'>
@@ -21,7 +22,8 @@ export async function submitCustomerFeedback(
     createdAt: new Date().toISOString(),
   };
 
-  await setDoc(doc(db, 'feedback', feedbackId), newFeedback);
+  const payload = sanitizeForFirestore(newFeedback);
+  await setDoc(doc(db, 'feedback', feedbackId), payload);
 
   // If associated with a QR code, increment its feedbackCount
   if (feedbackData.qrId) {
@@ -60,13 +62,14 @@ export async function recordGoogleReviewClick(
 ): Promise<void> {
   try {
     const clickId = `click_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    await setDoc(doc(db, 'reviewClicks', clickId), {
+    const clickPayload = sanitizeForFirestore({
       id: clickId,
       businessId,
       feedbackId: feedbackId || null,
       qrId: qrId || null,
       createdAt: new Date().toISOString(),
     });
+    await setDoc(doc(db, 'reviewClicks', clickId), clickPayload);
 
     if (feedbackId) {
       const feedbackRef = doc(db, 'feedback', feedbackId);

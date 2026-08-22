@@ -29,10 +29,18 @@ import { LegalNotice } from '../components/LegalNotice';
 
 interface LandingPageProps {
   onNavigate: (view: string) => void;
-  onOpenDemo: () => void;
+  onOpenDemo?: () => void;
+  onStartDemo?: () => void;
+  onOpenCustomerFlow?: (qrId: string) => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onOpenDemo }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({
+  onNavigate,
+  onOpenDemo,
+  onStartDemo,
+  onOpenCustomerFlow,
+}) => {
+  const triggerDemo = onStartDemo || onOpenDemo || (() => onNavigate('demo'));
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
   // Interactive Live Preview State on Landing Page
@@ -106,7 +114,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onOpenDemo
 
               <button
                 id="hero-try-demo-btn"
-                onClick={onOpenDemo}
+                onClick={triggerDemo}
                 className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 font-bold text-base shadow-sm hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2.5"
               >
                 <Play className="w-4 h-4 text-amber-500 fill-amber-500" />
@@ -244,7 +252,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onOpenDemo
                 <div className="pt-2 flex items-center justify-between gap-3 text-xs">
                   <span className="text-[11px] text-slate-400">Customer copies & pastes to Google</span>
                   <button
-                    onClick={onOpenDemo}
+                    onClick={triggerDemo}
                     className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors"
                   >
                     Test Full Demo Flow
@@ -496,7 +504,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, onOpenDemo
             </button>
             <button
               id="cta-demo-btn"
-              onClick={onOpenDemo}
+              onClick={triggerDemo}
               className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-indigo-800/80 hover:bg-indigo-900 text-white font-bold text-sm border border-indigo-400/40 transition-all"
             >
               Try Demo Without Registration

@@ -12,6 +12,7 @@ import {
 import { db } from '../lib/firebase';
 import { QRCodeItem } from '../types';
 import { generateSlug } from './businessService';
+import { sanitizeForFirestore } from '../utils/firestoreSanitizer';
 
 export async function createQRCode(
   businessId: string,
@@ -35,7 +36,8 @@ export async function createQRCode(
     createdAt: new Date().toISOString(),
   };
 
-  await setDoc(doc(db, 'qrCodes', qrId), newQR);
+  const payload = sanitizeForFirestore(newQR);
+  await setDoc(doc(db, 'qrCodes', qrId), payload);
   return newQR;
 }
 

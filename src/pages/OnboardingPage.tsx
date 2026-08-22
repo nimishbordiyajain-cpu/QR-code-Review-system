@@ -3,25 +3,16 @@ import { useAuth } from '../context/AuthContext';
 import { BusinessCategory } from '../types';
 import { createBusinessProfile } from '../services/businessService';
 import { createQRCode } from '../services/qrService';
+import { GoogleReviewUrlInput } from '../components/GoogleReviewUrlInput';
+import { normalizeGoogleReviewUrl } from '../utils/googleReviewUrlHelper';
 import {
-  Building2,
-  Sparkles,
-  ArrowRight,
-  ExternalLink,
-  CheckCircle2,
-  AlertCircle,
-  HelpCircle,
-  Link as LinkIcon,
   Store,
   MapPin,
   Phone,
-  FileText,
   User,
+  ArrowRight,
+  AlertCircle,
 } from 'lucide-react';
-
-interface OnboardingPageProps {
-  onNavigate: (view: string) => void;
-}
 
 const CATEGORIES: BusinessCategory[] = [
   'Restaurant',
@@ -38,6 +29,10 @@ const CATEGORIES: BusinessCategory[] = [
   'Other',
 ];
 
+interface OnboardingPageProps {
+  onNavigate: (view: string) => void;
+}
+
 export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate }) => {
   const { currentUser, setCurrentBusiness } = useAuth();
 
@@ -50,20 +45,9 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate }) =>
   const [description, setDescription] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [googleReviewUrl, setGoogleReviewUrl] = useState('');
-  const [isUrlTested, setIsUrlTested] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const handleTestGoogleUrl = () => {
-    if (!googleReviewUrl || !googleReviewUrl.startsWith('http')) {
-      setError('Please enter a valid Google Review URL starting with https://');
-      return;
-    }
-    setError(null);
-    window.open(googleReviewUrl, '_blank');
-    setIsUrlTested(true);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,8 +58,9 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate }) =>
       return;
     }
 
-    if (!googleReviewUrl.trim()) {
-      setError('Google Review URL is required to connect your customer flow.');
+    const cleanGoogleUrl = normalizeGoogleReviewUrl(googleReviewUrl.trim());
+    if (!cleanGoogleUrl) {
+      setError('Google Review URL is required to connect your customer review flow. You can use the helper or sample link.');
       return;
     }
 
@@ -91,14 +76,14 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate }) =>
       const business = await createBusinessProfile({
         ownerId: currentUser.uid,
         name: businessName.trim(),
-        ownerName: ownerName.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
+        ...(ownerName.trim() ? { ownerName: ownerName.trim() } : {}),
+        ...(email.trim() ? { email: email.trim() } : {}),
+        ...(phone.trim() ? { phone: phone.trim() } : {}),
         category,
-        address: address.trim(),
-        description: description.trim(),
-        logoUrl: logoUrl.trim() || undefined,
-        googleReviewUrl: googleReviewUrl.trim(),
+        ...(address.trim() ? { address: address.trim() } : {}),
+        ...(description.trim() ? { description: description.trim() } : {}),
+        ...(logoUrl.trim() ? { logoUrl: logoUrl.trim() } : {}),
+        googleReviewUrl: cleanGoogleUrl,
       });
 
       setCurrentBusiness(business);
@@ -133,7 +118,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate }) =>
             Set Up Your Business Profile
           </h1>
           <p className="text-sm text-slate-500 max-w-lg mx-auto">
-            Connect your Google review link and customize your feedback categories so customers can start sharing experiences.
+            Connect your Google review link and customize your business details so customers can start sharing experiences.
           </p>
         </div>
 
@@ -250,60 +235,16 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onNavigate }) =>
               </div>
             </div>
 
-            {/* Google Review URL Box (Crucial Section) */}
-            <div className="pt-4 border-t border-slate-100">
-              <div className="bg-indigo-50/50 border border-indigo-200/80 rounded-2xl p-5 space-y-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <LinkIcon className="w-4 h-4 text-indigo-600" />
-                      <span className="text-sm font-bold text-slate-900">
-                        Connect Google Review URL *
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600">
-                      This is the link your customers will open to submit their final review on Google.
-                    </p>
-                  </div>
-                  {isUrlTested && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full border border-emerald-300 shrink-0">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Google Review Link Connected ✓</span>
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-center gap-2">
-                  <input
-                    id="onboarding-google-url-input"
-                    type="url"
-                    required
-                    value={googleReviewUrl}
-                    onChange={(e) => {
-                      setGoogleReviewUrl(e.target.value);
-                      setIsUrlTested(false);
-                    }}
-                    placeholder="https://g.page/r/.../review or search.google.com/local/writereview?placeid=..."
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                  />
-                  <button
-                    id="onboarding-test-url-btn"
-                    type="button"
-                    onClick={handleTestGoogleUrl}
-                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200 text-xs font-bold shadow-2xs transition-all flex items-center justify-center gap-1.5 shrink-0"
-                  >
-                    <span>Test Link</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="text-[11px] text-slate-500 flex items-center gap-1">
-                  <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
-                  <span>
-                    Tip: Search for your business in Google Maps &gt; Click "Ask for reviews" &gt; Copy link.
-                  </span>
-                </div>
-              </div>
+            {/* Google Review URL Box */}
+            <div className="pt-2">
+              <GoogleReviewUrlInput
+                value={googleReviewUrl}
+                onChange={setGoogleReviewUrl}
+                businessName={businessName}
+                address={address}
+                idPrefix="onboarding"
+                required={true}
+              />
             </div>
 
             {/* Submit */}

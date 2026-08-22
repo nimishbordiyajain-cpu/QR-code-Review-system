@@ -3,24 +3,17 @@ import { useAuth } from '../context/AuthContext';
 import { BusinessProfile, BusinessCategory } from '../types';
 import { updateBusinessProfile } from '../services/businessService';
 import { DEMO_BUSINESS } from '../utils/demoData';
+import { GoogleReviewUrlInput } from '../components/GoogleReviewUrlInput';
+import { normalizeGoogleReviewUrl } from '../utils/googleReviewUrlHelper';
 import {
-  Settings,
   Store,
   MapPin,
   Phone,
-  Link as LinkIcon,
-  ExternalLink,
   CheckCircle2,
   AlertCircle,
   Save,
   User,
-  ShieldCheck,
 } from 'lucide-react';
-
-interface SettingsPageProps {
-  onNavigate: (view: string) => void;
-  isDemoMode?: boolean;
-}
 
 const CATEGORIES: BusinessCategory[] = [
   'Restaurant',
@@ -36,6 +29,11 @@ const CATEGORIES: BusinessCategory[] = [
   'Service Business',
   'Other',
 ];
+
+interface SettingsPageProps {
+  onNavigate: (view: string) => void;
+  isDemoMode?: boolean;
+}
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ isDemoMode = false }) => {
   const { currentBusiness, refreshBusiness } = useAuth();
@@ -54,14 +52,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDemoMode = false }
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleTestGoogleUrl = () => {
-    if (googleReviewUrl && googleReviewUrl.startsWith('http')) {
-      window.open(googleReviewUrl, '_blank');
-    } else {
-      setError('Please enter a valid URL starting with https://');
-    }
-  };
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -77,15 +67,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDemoMode = false }
     setSaving(true);
 
     try {
+      const cleanGoogleUrl = normalizeGoogleReviewUrl(googleReviewUrl.trim());
+
       await updateBusinessProfile(business.id, {
         name: name.trim(),
         ownerName: ownerName.trim(),
         phone: phone.trim(),
         address: address.trim(),
         category,
-        googleReviewUrl: googleReviewUrl.trim(),
+        googleReviewUrl: cleanGoogleUrl,
         description: description.trim(),
-        logoUrl: logoUrl.trim() || undefined,
+        logoUrl: logoUrl.trim(),
       });
 
       await refreshBusiness();
@@ -244,35 +236,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDemoMode = false }
             </div>
 
             {/* Google Review Link Section */}
-            <div className="pt-3 border-t border-slate-100">
-              <div className="bg-indigo-50/40 border border-indigo-200/70 rounded-xl p-3.5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <LinkIcon className="w-3.5 h-3.5 text-indigo-600" />
-                    <span className="text-xs font-bold text-slate-900">Google Review URL *</span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    id="settings-google-url-input"
-                    type="url"
-                    required
-                    value={googleReviewUrl}
-                    onChange={(e) => setGoogleReviewUrl(e.target.value)}
-                    className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-900 font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  />
-                  <button
-                    id="settings-test-google-url-btn"
-                    type="button"
-                    onClick={handleTestGoogleUrl}
-                    className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200 text-xs font-bold flex items-center justify-center gap-1 shrink-0"
-                  >
-                    <span>Test URL</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
+            <div className="pt-2">
+              <GoogleReviewUrlInput
+                value={googleReviewUrl}
+                onChange={setGoogleReviewUrl}
+                businessName={name}
+                address={address}
+                idPrefix="settings"
+                required={true}
+              />
             </div>
 
             <div className="pt-2 flex items-center justify-end">

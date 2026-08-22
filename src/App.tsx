@@ -172,9 +172,13 @@ function AppContent() {
           />
         )}
 
-        {currentView === 'login' && <LoginPage onNavigate={navigate} />}
+        {currentView === 'login' && (
+          <LoginPage onNavigate={navigate} onStartDemo={handleStartDemo} />
+        )}
 
-        {currentView === 'register' && <RegisterPage onNavigate={navigate} />}
+        {currentView === 'register' && (
+          <RegisterPage onNavigate={navigate} onStartDemo={handleStartDemo} />
+        )}
 
         {currentView === 'forgot-password' && <ForgotPasswordPage onNavigate={navigate} />}
 

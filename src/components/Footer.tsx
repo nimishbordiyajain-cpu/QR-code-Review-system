@@ -3,9 +3,10 @@ import { Sparkles, ShieldCheck, Heart } from 'lucide-react';
 
 interface FooterProps {
   onNavigate: (view: string) => void;
+  onStartDemo?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
+export const Footer: React.FC<FooterProps> = ({ onNavigate, onStartDemo }) => {
   return (
     <footer className="bg-slate-900 text-slate-400 text-xs border-t border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -37,7 +38,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('demo')} className="hover:text-white transition-colors text-amber-400 font-semibold cursor-pointer">
+                <button
+                  onClick={() => (onStartDemo ? onStartDemo() : onNavigate('demo'))}
+                  className="hover:text-white transition-colors text-amber-400 font-semibold cursor-pointer"
+                >
                   Try Live Demo Café
                 </button>
               </li>

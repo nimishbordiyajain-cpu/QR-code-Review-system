@@ -127,7 +127,7 @@ Please generate the 5 review drafts formatted as a JSON array of objects with ke
     try {
       const ai = getGeminiClient();
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.7-flash',
         contents: prompt,
         config: {
           systemInstruction,
@@ -219,7 +219,7 @@ Do not invent facts or mention things customers did not mention.`;
     try {
       const ai = getGeminiClient();
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.7-flash',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',

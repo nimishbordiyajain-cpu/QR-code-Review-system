@@ -217,6 +217,26 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+        {!business.googleReviewUrl && (
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs animate-in fade-in">
+            <div className="flex items-start sm:items-center gap-2.5">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+              <div>
+                <div className="text-xs font-bold">Google Review URL Not Connected</div>
+                <div className="text-[11px] text-amber-700">
+                  Customers who generate reviews won't have a direct link to submit their feedback to Google.
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => onNavigate('settings')}
+              className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shrink-0 transition-colors"
+            >
+              Add Google Review Link in Settings
+            </button>
+          </div>
+        )}
+
         {/* Main 6 Metrics Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[

@@ -12,6 +12,7 @@ import { auth, db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { BusinessProfile, BusinessUser } from '../types';
 import { getBusinessByOwnerId } from '../services/businessService';
+import { sanitizeForFirestore } from '../utils/firestoreSanitizer';
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -19,6 +20,9 @@ interface AuthContextType {
   currentBusiness: BusinessProfile | null;
   setCurrentBusiness: (business: BusinessProfile | null) => void;
   loading: boolean;
+  isDemoMode: boolean;
+  setIsDemoMode: (isDemo: boolean) => void;
+  toggleDemoMode: () => void;
   login: (email: string, pass: string) => Promise<void>;
   register: (email: string, pass: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -33,6 +37,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userProfile, setUserProfile] = useState<BusinessUser | null>(null);
   const [currentBusiness, setCurrentBusiness] = useState<BusinessProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
+
+  const toggleDemoMode = () => {
+    setIsDemoMode((prev) => !prev);
+  };
 
   const refreshBusiness = async () => {
     if (currentUser) {
@@ -63,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               role: user.email === 'admin@authenticreviews.com' ? 'admin' : 'owner',
               createdAt: new Date().toISOString(),
             };
-            await setDoc(userDocRef, newProfile);
+            await setDoc(userDocRef, sanitizeForFirestore(newProfile));
             setUserProfile(newProfile);
           }
 
@@ -98,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: 'owner',
         createdAt: new Date().toISOString(),
       };
-      await setDoc(doc(db, 'users', cred.user.uid), newProfile);
+      await setDoc(doc(db, 'users', cred.user.uid), sanitizeForFirestore(newProfile));
       setUserProfile(newProfile);
     }
   };
@@ -121,6 +130,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         currentBusiness,
         setCurrentBusiness,
         loading,
+        isDemoMode,
+        setIsDemoMode,
+        toggleDemoMode,
         login,
         register,
         logout,

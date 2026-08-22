@@ -1,49 +1,139 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Sparkles, ArrowRight, Lock, Mail, User, AlertCircle, PlayCircle, ShieldCheck } from 'lucide-react';
+import {
+  Sparkles,
+  ArrowRight,
+  Lock,
+  Mail,
+  User,
+  AlertCircle,
+  PlayCircle,
+  ShieldCheck,
+  Eye,
+  EyeOff,
+  LogIn,
+  KeyRound,
+} from 'lucide-react';
 
 interface RegisterPageProps {
   onNavigate: (view: string) => void;
-  onOpenDemo: () => void;
+  onOpenDemo?: () => void;
+  onStartDemo?: () => void;
 }
 
-export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDemo }) => {
+export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDemo, onStartDemo }) => {
   const { register } = useAuth();
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => {
+    try {
+      return sessionStorage.getItem('auth_last_email') || '';
+    } catch {
+      return '';
+    }
+  });
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [errorInfo, setErrorInfo] = useState<{
+    code?: string;
+    message: string;
+    action?: 'login' | 'reset' | 'both';
+  } | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const handleDemoClick = onStartDemo || onOpenDemo || (() => onNavigate('demo'));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setErrorInfo(null);
+
+    const cleanEmail = email.trim();
+    const cleanName = name.trim();
+
+    if (!cleanName) {
+      setErrorInfo({
+        message: 'Please enter your name or your business owner name.',
+      });
+      return;
+    }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+      setErrorInfo({
+        code: 'weak-password',
+        message: 'Password must be at least 6 characters.',
+      });
+      return;
+    }
+
+    if (confirmPassword && password !== confirmPassword) {
+      setErrorInfo({
+        message: 'Passwords do not match. Please re-enter your password.',
+      });
       return;
     }
 
     setLoading(true);
 
     try {
-      await register(email.trim(), password, name.trim());
+      try {
+        sessionStorage.setItem('auth_last_email', cleanEmail);
+      } catch {}
+
+      await register(cleanEmail, password, cleanName);
       // Direct newly registered user to Onboarding to setup business profile
       onNavigate('onboarding');
     } catch (err: any) {
       console.error('Registration error:', err);
-      let msg = 'Failed to register account. Please try again.';
-      if (err.code === 'auth/email-already-in-use') {
-        msg = 'This email is already registered. Please sign in instead.';
-      } else if (err.code === 'auth/invalid-email') {
-        msg = 'Please enter a valid email address.';
-      } else if (err.code === 'auth/weak-password') {
-        msg = 'Password is too weak. Please use a stronger combination.';
+      const code = err?.code || '';
+      const errMsg = err?.message || '';
+
+      if (code === 'auth/email-already-in-use' || errMsg.includes('auth/email-already-in-use')) {
+        setErrorInfo({
+          code: 'email-already-in-use',
+          message: `The email "${cleanEmail}" is already registered. Would you like to sign in instead or reset your password?`,
+          action: 'both',
+        });
+      } else if (code === 'auth/invalid-email' || errMsg.includes('auth/invalid-email')) {
+        setErrorInfo({
+          code: 'invalid-email',
+          message: 'Please enter a valid email address format (e.g. name@domain.com).',
+        });
+      } else if (code === 'auth/weak-password' || errMsg.includes('auth/weak-password')) {
+        setErrorInfo({
+          code: 'weak-password',
+          message: 'Password is too weak. Please use at least 6 characters.',
+        });
+      } else if (code === 'auth/network-request-failed' || errMsg.includes('network-request-failed')) {
+        setErrorInfo({
+          code: 'network',
+          message: 'Network connection issue. Please check your internet connection and retry.',
+        });
+      } else {
+        setErrorInfo({
+          message: errMsg || 'Failed to register account. Please try again.',
+        });
       }
-      setError(msg);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoToLogin = () => {
+    try {
+      if (email.trim()) {
+        sessionStorage.setItem('auth_last_email', email.trim());
+      }
+    } catch {}
+    onNavigate('login');
+  };
+
+  const handleGoToForgotPassword = () => {
+    try {
+      if (email.trim()) {
+        sessionStorage.setItem('auth_last_email', email.trim());
+      }
+    } catch {}
+    onNavigate('forgot-password');
   };
 
   return (
@@ -62,10 +152,37 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
           </p>
         </div>
 
-        {error && (
-          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-start gap-2 animate-in fade-in">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{error}</span>
+        {errorInfo && (
+          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-2.5 animate-in fade-in">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+              <span className="font-medium leading-relaxed">{errorInfo.message}</span>
+            </div>
+
+            {errorInfo.action && (
+              <div className="pt-1.5 border-t border-rose-200/80 flex items-center gap-2 flex-wrap">
+                {(errorInfo.action === 'login' || errorInfo.action === 'both') && (
+                  <button
+                    type="button"
+                    onClick={handleGoToLogin}
+                    className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    <LogIn className="w-3 h-3" />
+                    <span>Sign In to Existing Account</span>
+                  </button>
+                )}
+                {(errorInfo.action === 'reset' || errorInfo.action === 'both') && (
+                  <button
+                    type="button"
+                    onClick={handleGoToForgotPassword}
+                    className="px-2.5 py-1 rounded-lg bg-white hover:bg-rose-100/70 text-rose-900 border border-rose-300 font-bold text-[11px] flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    <KeyRound className="w-3 h-3 text-rose-600" />
+                    <span>Forgot Password?</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -114,15 +231,47 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
               <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
               <input
                 id="register-password-input"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Confirm Password
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+              <input
+                id="register-confirm-password-input"
+                type={showPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                className={`w-full bg-slate-50 border rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 transition-all ${
+                  confirmPassword && confirmPassword !== password
+                    ? 'border-rose-300 focus:ring-rose-500'
+                    : 'border-slate-200 focus:ring-indigo-500'
+                }`}
               />
             </div>
+            {confirmPassword && confirmPassword !== password && (
+              <p className="text-[11px] text-rose-600 mt-1">Passwords do not match</p>
+            )}
           </div>
 
           <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-1">
@@ -134,7 +283,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
             id="register-submit-btn"
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             {loading ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -151,8 +300,8 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
           <p className="text-xs text-slate-600">
             Already have an account?{' '}
             <button
-              onClick={() => onNavigate('login')}
-              className="text-indigo-600 hover:text-indigo-700 font-bold"
+              onClick={handleGoToLogin}
+              className="text-indigo-600 hover:text-indigo-700 font-bold cursor-pointer"
             >
               Sign In
             </button>
@@ -169,8 +318,8 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
 
           <button
             type="button"
-            onClick={onOpenDemo}
-            className="w-full py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 hover:bg-amber-100 font-bold text-xs flex items-center justify-center gap-2 transition-colors"
+            onClick={handleDemoClick}
+            className="w-full py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 hover:bg-amber-100 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
             <PlayCircle className="w-4 h-4 text-amber-600" />
             <span>Explore Demo Café First</span>

@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { BusinessProfile } from '../types';
+import { sanitizeForFirestore } from '../utils/firestoreSanitizer';
 
 export function generateSlug(name: string): string {
   return name
@@ -35,7 +36,8 @@ export async function createBusinessProfile(
     createdAt: new Date().toISOString(),
   };
 
-  await setDoc(doc(db, 'businesses', businessId), newBusiness);
+  const payload = sanitizeForFirestore(newBusiness);
+  await setDoc(doc(db, 'businesses', businessId), payload);
   return newBusiness;
 }
 
@@ -97,10 +99,11 @@ export async function updateBusinessProfile(
   businessId: string,
   data: Partial<BusinessProfile>
 ): Promise<void> {
-  await updateDoc(doc(db, 'businesses', businessId), {
+  const payload = sanitizeForFirestore({
     ...data,
     updatedAt: new Date().toISOString(),
   });
+  await updateDoc(doc(db, 'businesses', businessId), payload);
 }
 
 export async function getAllBusinesses(): Promise<BusinessProfile[]> {

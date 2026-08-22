@@ -21,16 +21,32 @@ interface NavbarProps {
   onNavigate: (view: string) => void;
   isDemoMode?: boolean;
   onToggleDemoMode?: () => void;
+  onStartDemo?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentView,
   onNavigate,
-  isDemoMode = false,
+  isDemoMode: propIsDemoMode,
   onToggleDemoMode,
+  onStartDemo,
 }) => {
-  const { currentUser, userProfile, currentBusiness, logout } = useAuth();
+  const { currentUser, userProfile, currentBusiness, logout, isDemoMode: authIsDemoMode, toggleDemoMode } = useAuth();
+  const isDemoMode = propIsDemoMode !== undefined ? propIsDemoMode : authIsDemoMode;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleDemoClick = () => {
+    if (onToggleDemoMode) {
+      onToggleDemoMode();
+    } else if (onStartDemo && !isDemoMode) {
+      onStartDemo();
+    } else if (toggleDemoMode) {
+      toggleDemoMode();
+      onNavigate(isDemoMode ? 'landing' : 'demo');
+    } else {
+      onNavigate('demo');
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -118,10 +134,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Demo Mode Toggle Button */}
             <button
               id="nav-demo-btn"
-              onClick={() => {
-                if (onToggleDemoMode) onToggleDemoMode();
-                else onNavigate('demo');
-              }}
+              onClick={handleDemoClick}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                 isDemoMode
                   ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 shadow-2xs'
@@ -263,7 +276,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
               <button
                 onClick={() => {
-                  onNavigate('demo');
+                  handleDemoClick();
                   setMobileMenuOpen(false);
                 }}
                 className="w-full text-left px-3 py-2 text-sm font-medium text-amber-800 bg-amber-50 rounded-lg flex items-center justify-between"
