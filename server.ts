@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
@@ -13,9 +13,57 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+// Security Hardening: Disable fingerprinting headers
+app.disable('x-powered-by');
 
-// In-memory rate limiting and usage tracking for MVP
+// Security Hardening: Essential HTTP Security Headers Middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
+
+// DoS Protection: Limit JSON payload size to 100kb
+app.use(express.json({ limit: '100kb' }));
+
+// Security Hardening: IP-based sliding rate limiter for AI endpoints
+interface RateLimitRecord {
+  count: number;
+  resetAt: number;
+}
+const ipRateLimits = new Map<string, RateLimitRecord>();
+
+function checkIpRateLimit(ip: string, maxRequests: number = 40, windowMs: number = 60 * 1000): boolean {
+  const now = Date.now();
+  const record = ipRateLimits.get(ip);
+
+  if (!record || now > record.resetAt) {
+    ipRateLimits.set(ip, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+
+  if (record.count >= maxRequests) {
+    return false;
+  }
+
+  record.count += 1;
+  return true;
+}
+
+// Clean up stale rate limits every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, rec] of ipRateLimits.entries()) {
+    if (now > rec.resetAt) {
+      ipRateLimits.delete(ip);
+    }
+  }
+}, 5 * 60 * 1000);
+
+// In-memory rate limiting and usage tracking per business
 // Maps businessId_YYYY-MM-DD -> count
 const dailyUsageTracker: Record<string, number> = {};
 const DAILY_LIMIT = 50;
@@ -35,13 +83,23 @@ function checkAndIncrementUsage(businessId: string): { allowed: boolean; current
   return { allowed: true, current: current + 1, limit: DAILY_LIMIT };
 }
 
+// Input sanitizer against malicious prompt injection or script delimiters
+function sanitizeInputString(val: any, maxLength: number = 500): string {
+  if (typeof val !== 'string') return '';
+  return val
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // remove ASCII control chars
+    .replace(/<[^>]*>?/gm, '') // strip raw HTML tags
+    .trim()
+    .slice(0, maxLength);
+}
+
 // Lazy Gemini API Client
 let geminiClient: GoogleGenAI | null = null;
 function getGeminiClient(): GoogleGenAI {
   if (!geminiClient) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      console.warn('GEMINI_API_KEY is not set in environment variables. Mock generation fallback will be active if not supplied.');
+      console.warn('GEMINI_API_KEY is not set in environment variables. Fallback template builder active.');
     }
     geminiClient = new GoogleGenAI(apiKey ? { apiKey } : {});
   }
@@ -56,25 +114,50 @@ app.get('/api/health', (req: Request, res: Response) => {
 // 2. AI Review Drafts Generation Endpoint
 app.post('/api/generate-reviews', async (req: Request, res: Response) => {
   try {
-    const {
-      businessId,
-      businessName,
-      businessCategory,
-      rating,
-      selectedCategories,
-      customerComment,
-      customerName,
-    } = req.body;
+    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
 
-    if (!businessName || typeof rating !== 'number') {
-      return res.status(400).json({
+    // IP-level rate limiting (max 40 requests/min per IP)
+    if (!checkIpRateLimit(clientIp, 40)) {
+      return res.status(429).json({
         success: false,
-        error: 'Missing required parameters (businessName and rating).',
+        error: 'Too many requests from this IP. Please wait a moment before trying again.',
       });
     }
 
+    const {
+      businessId,
+      businessName: rawBizName,
+      businessCategory: rawBizCategory,
+      rating: rawRating,
+      selectedCategories: rawSelectedCategories,
+      customerComment: rawComment,
+      customerName: rawCustomerName,
+    } = req.body;
+
+    const rating = typeof rawRating === 'number' ? Math.max(1, Math.min(5, Math.round(rawRating))) : null;
+    const businessName = sanitizeInputString(rawBizName, 100);
+    const businessCategory = sanitizeInputString(rawBizCategory, 60);
+    const customerComment = sanitizeInputString(rawComment, 800);
+    const customerName = sanitizeInputString(rawCustomerName, 80);
+
+    if (!businessName || rating === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing or invalid required parameters (businessName and numeric rating between 1 and 5).',
+      });
+    }
+
+    // Sanitize selected categories array
+    const selectedCategories: string[] = Array.isArray(rawSelectedCategories)
+      ? rawSelectedCategories
+          .map((c) => sanitizeInputString(c, 50))
+          .filter((c) => c.length > 0)
+          .slice(0, 15)
+      : [];
+
     // Check usage limit per business
-    const usage = checkAndIncrementUsage(businessId || 'default');
+    const cleanBizId = sanitizeInputString(businessId, 60) || 'default';
+    const usage = checkAndIncrementUsage(cleanBizId);
     if (!usage.allowed) {
       return res.status(429).json({
         success: false,
@@ -82,52 +165,44 @@ app.post('/api/generate-reviews', async (req: Request, res: Response) => {
       });
     }
 
-    const categoriesText = Array.isArray(selectedCategories) && selectedCategories.length > 0
+    const categoriesText = selectedCategories.length > 0
       ? selectedCategories.join(', ')
       : 'None explicitly selected';
 
-    const commentText = customerComment ? customerComment.trim() : 'No additional written text provided';
-    const nameText = customerName ? customerName.trim() : 'Anonymous customer';
+    const commentText = customerComment.length > 0 ? customerComment : 'No additional written text provided';
+    const nameText = customerName.length > 0 ? customerName : 'Anonymous customer';
 
-    const systemInstruction = `You are an AI writing assistant helping a customer express their genuine experience with a business.
-Generate five natural review drafts based ONLY on the information provided by the customer.
+    const systemInstruction = `You are a helpful writing assistant assisting a customer in phrasing their authentic review for a business.
+Generate five natural review drafts based STRICTLY and ONLY on the customer's provided rating, feedback highlights, and comments.
 
-Strict Guardrails:
-- Never invent facts.
-- Never exaggerate.
-- Never change the customer's sentiment.
-- Never increase the customer's rating or tone.
-- Never introduce experiences, products, dishes, staff names, discounts, or events that the customer did not mention.
-- Do not claim the customer visited a place, used a service, purchased a product, or interacted with staff unless the customer provided that information.
-- If the customer gave a 1, 2, or 3-star rating or negative feedback, keep the drafts strictly constructive, honest, and reflective of their negative/mixed sentiment. Do NOT make it sound enthusiastic or positive.
-- If the customer gave a 4 or 5-star rating, keep the drafts genuine and appreciative based only on what they liked.
-- The drafts must be natural and suitable for a customer to review, edit, and optionally post.
-- The customer remains responsible for the final review.
+Strict Safety & Authenticity Guardrails:
+- Never invent experiences, products, dishes, staff, or events.
+- Never exaggerate or alter the customer's sentiment.
+- Never increase the rating or make negative experiences sound positive.
+- If customer rating is 1, 2, or 3 stars, keep the tone honest, constructive, and balanced.
+- If customer rating is 4 or 5 stars, reflect their genuine appreciation.
+- Customer remains responsible for their final review submission.
 
-You must return exactly 5 distinct styles in valid JSON format:
-1. "Short & Simple" (1-2 crisp, direct sentences)
-2. "Friendly & Natural" (warm, conversational, genuine tone)
-3. "Detailed" (thoroughly mentions each category/aspect the customer selected or noted)
-4. "Professional" (constructive, balanced, formal tone)
-5. "Casual" (relaxed, authentic, everyday language)`;
+Return valid JSON with 5 review variations:
+1. "Short & Simple" (1-2 sentences)
+2. "Friendly & Natural" (warm and conversational)
+3. "Detailed" (thorough mention of selected highlights)
+4. "Professional" (balanced and formal)
+5. "Casual" (relaxed and authentic)`;
 
-    const prompt = `Business Name: ${businessName}
-Business Category: ${businessCategory || 'Business'}
-Customer Star Rating: ${rating} out of 5 stars
-Selected Experience Highlights / Feedback: ${categoriesText}
-Customer's Own Comment: "${commentText}"
-Customer Name (optional): ${nameText}
+    const prompt = `Business: ${businessName}
+Category: ${businessCategory || 'Business'}
+Star Rating: ${rating}/5
+Experience Highlights: ${categoriesText}
+Customer Remarks: "${commentText}"
+Customer Name: ${nameText}
 
-Please generate the 5 review drafts formatted as a JSON array of objects with keys:
-"id" (string 1-5),
-"style" ("Short & Simple" | "Friendly & Natural" | "Detailed" | "Professional" | "Casual"),
-"description" (short phrase explaining the draft tone),
-"content" (the full review text draft)`;
+Output valid JSON array of 5 objects with keys: id (string "1"-"5"), style, description, content.`;
 
     try {
       const ai = getGeminiClient();
       const response = await ai.models.generateContent({
-        model: 'gemini-3.7-flash',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
           systemInstruction,
@@ -140,13 +215,11 @@ Please generate the 5 review drafts formatted as a JSON array of objects with ke
       let parsedDrafts: any[] = [];
       try {
         parsedDrafts = JSON.parse(responseText);
-        // Ensure it's an array
         if (!Array.isArray(parsedDrafts) && parsedDrafts && typeof parsedDrafts === 'object') {
-          // In case Gemini returns { drafts: [...] } or { reviews: [...] }
           parsedDrafts = (parsedDrafts as any).drafts || (parsedDrafts as any).reviews || Object.values(parsedDrafts);
         }
       } catch (e) {
-        console.error('Failed to parse Gemini JSON response:', responseText);
+        console.error('Failed to parse Gemini JSON response');
       }
 
       if (Array.isArray(parsedDrafts) && parsedDrafts.length >= 3) {
@@ -160,7 +233,7 @@ Please generate the 5 review drafts formatted as a JSON array of objects with ke
       console.warn('Gemini API call failed, falling back to deterministic template builder:', aiError?.message || aiError);
     }
 
-    // Fallback deterministic draft generator (ensures zero-downtime if API key is temporarily absent)
+    // Fallback deterministic draft generator (ensures zero-downtime if API key is temporarily unavailable)
     const fallbackDrafts = generateFallbackDrafts(businessName, rating, selectedCategories, customerComment);
     return res.json({
       success: true,
@@ -181,7 +254,15 @@ Please generate the 5 review drafts formatted as a JSON array of objects with ke
 // 3. AI Business Insights Endpoint
 app.post('/api/business-insights', async (req: Request, res: Response) => {
   try {
-    const { businessName, category, feedbacksSummary } = req.body;
+    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+
+    if (!checkIpRateLimit(clientIp, 20)) {
+      return res.status(429).json({ success: false, error: 'Too many requests. Please wait a minute.' });
+    }
+
+    const { businessName: rawBizName, category: rawCat, feedbacksSummary } = req.body;
+    const businessName = sanitizeInputString(rawBizName, 100);
+    const category = sanitizeInputString(rawCat, 60);
 
     if (!feedbacksSummary || !feedbacksSummary.total || feedbacksSummary.total < 3) {
       return res.json({
@@ -203,23 +284,20 @@ app.post('/api/business-insights', async (req: Request, res: Response) => {
     const prompt = `You are a customer experience consultant analyzing aggregated, anonymized customer feedback for ${businessName} (${category || 'Small Business'}).
 Total feedback items: ${feedbacksSummary.total}
 Average rating: ${feedbacksSummary.avgRating} / 5
-Rating distribution: 5★: ${feedbacksSummary.ratings['5'] || 0}, 4★: ${feedbacksSummary.ratings['4'] || 0}, 3★: ${feedbacksSummary.ratings['3'] || 0}, 2★: ${feedbacksSummary.ratings['2'] || 0}, 1★: ${feedbacksSummary.ratings['1'] || 0}
+Rating distribution: 5★: ${feedbacksSummary.ratings?.['5'] || 0}, 4★: ${feedbacksSummary.ratings?.['4'] || 0}, 3★: ${feedbacksSummary.ratings?.['3'] || 0}, 2★: ${feedbacksSummary.ratings?.['2'] || 0}, 1★: ${feedbacksSummary.ratings?.['1'] || 0}
 Top selected positive tags: ${JSON.stringify(feedbacksSummary.topPositives || [])}
 Top selected improvement tags: ${JSON.stringify(feedbacksSummary.topImprovements || [])}
-Representative customer comments (anonymized): ${JSON.stringify(feedbacksSummary.sampleComments || [])}
 
 Provide an objective, constructive business summary in JSON format with:
 - "strengths": array of 2-4 key operational/service strengths customers highlighted
 - "areasForImprovement": array of 2-4 constructive areas for growth
 - "customerSentimentSummary": a 2-3 sentence executive summary of overall customer sentiment
-- "actionableRecommendations": array of 2-3 specific, low-cost practical tips for the team
-
-Do not invent facts or mention things customers did not mention.`;
+- "actionableRecommendations": array of 2-3 specific, low-cost practical tips for the team`;
 
     try {
       const ai = getGeminiClient();
       const response = await ai.models.generateContent({
-        model: 'gemini-3.7-flash',
+        model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -394,3 +472,4 @@ async function startServer() {
 }
 
 startServer();
+

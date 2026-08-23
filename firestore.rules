@@ -11,40 +11,57 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
-    // User profile documents
+    // User profile documents: strictly isolated to the user
     match /users/{userId} {
       allow read: if isOwner(userId);
-      allow create, update: if isOwner(userId);
+      allow create, update: if isOwner(userId) && request.resource.data.id == userId;
+      allow delete: if isOwner(userId);
     }
     
     // Business profile documents
     match /businesses/{businessId} {
       // Publicly readable for customer QR scan flow & business resolution
       allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow create: if isAuthenticated() 
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 150;
+      allow update: if isAuthenticated() 
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 150;
+      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
     }
     
-    // QR Code records
+    // QR Code records: protects against malicious tampering of QR links
     match /qrCodes/{qrId} {
       // Publicly readable so customers can resolve QR context
       allow read: if true;
-      allow create, delete: if isAuthenticated();
-      // Publicly allow updates for scanCount and totalFeedbacks increments from customer QR scans
-      allow update: if true;
+      allow create: if isAuthenticated() && request.resource.data.businessId is string;
+      // Allow authenticated owners full updates, OR allow customer scans to ONLY increment scan/feedback metrics
+      allow update: if isAuthenticated() || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scanCount', 'feedbackCount', 'lastScannedAt'])
+      );
+      allow delete: if isAuthenticated();
     }
     
-    // Customer Feedback records
+    // Customer Feedback records: customer submissions & secure owner queries
     match /feedback/{feedbackId} {
-      // Any customer can submit feedback without login
-      allow create: if true;
-      // Only authenticated business owners can read/manage their feedback
+      // Any customer can submit feedback without login, strictly validated
+      allow create: if request.resource.data.businessId is string 
+        && request.resource.data.businessId.size() > 0
+        && request.resource.data.rating is number 
+        && request.resource.data.rating >= 1 
+        && request.resource.data.rating <= 5;
+      // Authenticated business owners can read & manage feedback
       allow read, update, delete: if isAuthenticated();
     }
     
-    // Google Review link click tracking
+    // Google Review link click telemetry
     match /reviewClicks/{clickId} {
-      allow create: if true;
+      allow create: if request.resource.data.businessId is string && request.resource.data.businessId.size() > 0;
       allow read: if isAuthenticated();
     }
     
@@ -54,3 +71,4 @@ service cloud.firestore {
     }
   }
 }
+

@@ -5,6 +5,7 @@ import { getQRCodeById, incrementQRScan } from '../services/qrService';
 import { submitCustomerFeedback, recordGoogleReviewClick } from '../services/feedbackService';
 import { generateReviewDrafts } from '../services/aiService';
 import { getDefaultCategoriesForType, ExperienceCategoryDefinition } from '../utils/categories';
+import { getSafeRedirectUrl } from '../utils/googleReviewUrlHelper';
 import { DEMO_BUSINESS, DEMO_QR_CODES } from '../utils/demoData';
 import { StarRating } from '../components/StarRating';
 import { AIReviewOptions } from '../components/AIReviewOptions';
@@ -230,9 +231,10 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
       recordGoogleReviewClick(business.id, submittedFeedbackId || undefined, qrCode?.id);
     }
 
-    // 3. Open Google Review URL
-    const googleUrl = business.googleReviewUrl || `https://www.google.com/search?q=${encodeURIComponent(business.name + ' reviews')}`;
-    window.open(googleUrl, '_blank');
+    // 3. Open Google Review URL with strict sanitization
+    const fallbackSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(business.name + ' reviews')}`;
+    const safeUrl = getSafeRedirectUrl(business.googleReviewUrl, fallbackSearchUrl);
+    window.open(safeUrl, '_blank', 'noopener,noreferrer');
     setGoogleOpened(true);
   };
 

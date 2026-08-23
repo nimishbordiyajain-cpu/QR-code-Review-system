@@ -1,8 +1,40 @@
+# Dependencies
 node_modules/
+.pnp
+.pnp.js
+
+# Build Outputs
 build/
 dist/
 coverage/
+
+# OS and Editor files
 .DS_Store
+*.pem
+*.key
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
 *.log
-.env*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment and Secrets (CRITICAL FOR GITHUB)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+*.env
 !.env.example
+
+# Service Account Keys & Credentials
+service-account*.json
+credentials*.json
+*secret*.json
+*.key.json
+

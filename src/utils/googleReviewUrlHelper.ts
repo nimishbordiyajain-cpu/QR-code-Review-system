@@ -40,6 +40,21 @@ export function isValidUrl(url: string): boolean {
   }
 }
 
+export function getSafeRedirectUrl(url?: string, fallbackUrl: string = ''): string {
+  if (!url) return fallbackUrl;
+  try {
+    const normalized = normalizeGoogleReviewUrl(url);
+    const parsed = new URL(normalized);
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+      return parsed.href;
+    }
+  } catch {
+    // Malformed URL
+  }
+  return fallbackUrl;
+}
+
+
 export function buildGoogleMapsSearchUrl(businessName: string, address?: string): string {
   const query = [businessName, address].filter(Boolean).join(' ');
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query || 'my business')}`;
