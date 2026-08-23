@@ -69,6 +69,28 @@ function AppContent() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  // Update dynamic document title with app name and view
+  useEffect(() => {
+    const titles: Record<string, string> = {
+      landing: 'ReviewFlow AI — Authentic Reviews & Smart Feedback Platform',
+      dashboard: 'Dashboard | ReviewFlow AI',
+      qr: 'QR Code Management | ReviewFlow AI',
+      feedback: 'Customer Feedback & Sentiment | ReviewFlow AI',
+      settings: 'Business Settings | ReviewFlow AI',
+      login: 'Sign In | ReviewFlow AI',
+      register: 'Get Started | ReviewFlow AI',
+      'forgot-password': 'Reset Password | ReviewFlow AI',
+      onboarding: 'Setup Your Business | ReviewFlow AI',
+      admin: 'Admin Overview | ReviewFlow AI',
+      demo: 'Interactive Live Demo | ReviewFlow AI',
+      privacy: 'Privacy Policy | ReviewFlow AI',
+      terms: 'Terms of Service | ReviewFlow AI',
+      'customer-flow': 'Customer Feedback & Review | ReviewFlow AI',
+    };
+
+    document.title = titles[currentView] || 'ReviewFlow AI — Authentic Reviews & Smart Feedback Platform';
+  }, [currentView]);
+
   const navigate = (view: string, params?: { businessSlug?: string; qrId?: string }) => {
     setCurrentView(view);
     if (params) {

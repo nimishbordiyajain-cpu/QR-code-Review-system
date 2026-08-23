@@ -107,6 +107,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
         }
 
         setBusiness(biz);
+        document.title = `${biz.name} — ReviewFlow AI`;
 
         if (qrId) {
           const qr = await getQRCodeById(qrId);

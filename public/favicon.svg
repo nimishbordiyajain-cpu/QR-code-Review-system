@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="rfGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="100%" stop-color="#3730A3" />
+    </linearGradient>
+    <linearGradient id="sparkleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E0E7FF" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Rounded Base Background -->
+  <rect width="64" height="64" rx="16" fill="url(#rfGrad)" />
+  
+  <!-- Chat Review Bubble Outline / Plate -->
+  <path d="M18 20 C18 16.686 20.686 14 24 14 L40 14 C43.314 14 46 16.686 46 20 L46 36 C46 39.314 43.314 42 40 42 L28 42 L20 48 L20 42 C18.895 42 18 41.105 18 40 Z" fill="none" stroke="rgba(255, 255, 255, 0.25)" stroke-width="2.5" stroke-linejoin="round" />
+  
+  <!-- Main Center AI Sparkle -->
+  <path d="M32 20 C32 25 35 28 40 28 C35 28 32 31 32 36 C32 31 29 28 24 28 C29 28 32 25 32 20 Z" fill="url(#sparkleGrad)" />
+  
+  <!-- Secondary Top-Right Sparkle -->
+  <path d="M44 19 C44 21.5 45.5 23 48 23 C45.5 23 44 24.5 44 27 C44 24.5 42.5 23 40 23 C42.5 23 44 21.5 44 19 Z" fill="#A5B4FC" />
+  
+  <!-- Small Star Indicator Bottom Left -->
+  <circle cx="25" cy="35" r="1.75" fill="#C7D2FE" />
+</svg>
