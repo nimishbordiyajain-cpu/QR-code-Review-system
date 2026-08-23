@@ -4,20 +4,41 @@ A modern, authentic customer review generation and feedback platform for busines
 
 ---
 
+## 🚀 Deploy to Vercel (1-Click Ready)
+
+This repository is optimized out-of-the-box for **Vercel**:
+- **SPA Routing**: Configured via `vercel.json` with fallback rewriting to `/index.html`.
+- **Serverless API Routes**: `/api/generate-reviews`, `/api/business-insights`, and `/api/health` automatically run as Vercel Serverless Functions.
+- **Client Zero-Downtime Fallback**: If serverless functions are disabled or unconfigured, the app automatically generates deterministic, high-quality review suggestions client-side without errors.
+
+### Vercel Deployment Steps:
+
+1. **Push to GitHub**:
+   - Push this repository to your GitHub account (e.g. `https://github.com/your-username/reviewflow-ai`).
+
+2. **Import Project into Vercel**:
+   - Go to [vercel.com](https://vercel.com) and click **"Add New Project"**.
+   - Select your GitHub repository.
+   - Framework Preset: **Vite** (automatically detected).
+   - Build Command: `vite build` (or leave default).
+   - Output Directory: `dist` (default).
+
+3. **Configure Environment Variables in Vercel Dashboard** *(Optional but recommended)*:
+   Under **Project Settings > Environment Variables**, add:
+   - `GEMINI_API_KEY`: *(Your Google AI Studio Gemini API Key)*
+
+4. **Click Deploy**:
+   - Your app will be live globally on your `*.vercel.app` domain with instant HTTPS!
+
+---
+
 ## 🔒 Security & Architecture Best Practices
 
-This repository has been configured with strict security guidelines:
-
 1. **Zero Secret Leakage**:
-   - `GEMINI_API_KEY` is maintained **strictly on the backend server** (`server.ts`) and is never sent or exposed to client browsers.
+   - `GEMINI_API_KEY` is maintained **strictly in backend serverless functions** and is never sent or exposed to client browsers.
    - All `.env` and `.env.local` files, certificates, and service account keys are excluded in `.gitignore`.
-   - Never commit real private keys or backend service account credentials to GitHub.
 
-2. **DoS & Rate Limiting**:
-   - The Express backend implements sliding-window IP rate limiting (40 requests/min) to prevent brute-force attacks and abuse.
-   - Input payload sizes are capped at 100kb with aggressive input sanitization against prompt injection.
-
-3. **Firestore Security Rules**:
+2. **Firestore Security Rules**:
    - Database rules (`firestore.rules`) enforce owner-only access for business edits and ensure public review submissions cannot modify other records.
 
 ---
@@ -30,14 +51,14 @@ Copy `.env.example` to `.env`:
 cp .env.example .env
 ```
 
-Set your required environment variables:
+Set your environment variables:
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 ---
 
-## 🚀 Running Locally
+## 💻 Running Locally
 
 Install dependencies:
 ```bash
@@ -49,7 +70,7 @@ Start the development server:
 npm run dev
 ```
 
-Build for production:
+Build and test locally:
 ```bash
 npm run build
 npm start
