@@ -14,7 +14,7 @@ service cloud.firestore {
     // User profile documents: strictly isolated to the user
     match /users/{userId} {
       allow read: if isOwner(userId);
-      allow create, update: if isOwner(userId) && request.resource.data.id == userId;
+      allow create, update: if isOwner(userId);
       allow delete: if isOwner(userId);
     }
     
