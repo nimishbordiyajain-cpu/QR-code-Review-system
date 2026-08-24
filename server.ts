@@ -93,15 +93,74 @@ function sanitizeInputString(val: any, maxLength: number = 500): string {
     .slice(0, maxLength);
 }
 
-// Lazy Gemini API Client
+// Groq Multi-Model AI Router Configuration
+const DEFAULT_GROQ_API_KEY = "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";
+
+// Models in priority routing order
+const GROQ_ROUTER_MODELS = [
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
+  'mixtral-8x7b-32768',
+  'gemma2-9b-it'
+];
+
+interface GroqRouteResult {
+  content: string;
+  modelUsed: string;
+}
+
+async function callGroqRouter(
+  messages: Array<{ role: string; content: string }>,
+  jsonMode: boolean = true,
+  maxTokens: number = 1500
+): Promise<GroqRouteResult | null> {
+  const apiKey = process.env.GROQ_API_KEY || DEFAULT_GROQ_API_KEY;
+  if (!apiKey) return null;
+
+  // Try routing through available models in the cascade
+  for (const model of GROQ_ROUTER_MODELS) {
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey.trim()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          response_format: jsonMode ? { type: 'json_object' } : undefined,
+          temperature: 0.3,
+          max_tokens: maxTokens,
+        }),
+      });
+
+      if (response.ok) {
+        const data: any = await response.json();
+        const content = data?.choices?.[0]?.message?.content;
+        if (content) {
+          return { content, modelUsed: model };
+        }
+      } else {
+        const errText = await response.text();
+        console.warn(`Groq Router failed for model ${model} (${response.status}): ${errText.slice(0, 100)}... Routing to next model.`);
+      }
+    } catch (err: any) {
+      console.warn(`Groq Router network error with ${model}:`, err?.message || err);
+    }
+  }
+
+  return null;
+}
+
+// Lazy Gemini API Client as secondary fallback
 let geminiClient: GoogleGenAI | null = null;
-function getGeminiClient(): GoogleGenAI {
+function getGeminiClient(): GoogleGenAI | null {
   if (!geminiClient) {
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.warn('GEMINI_API_KEY is not set in environment variables. Fallback template builder active.');
+    if (apiKey) {
+      geminiClient = new GoogleGenAI({ apiKey });
     }
-    geminiClient = new GoogleGenAI(apiKey ? { apiKey } : {});
   }
   return geminiClient;
 }
@@ -199,35 +258,71 @@ Customer Name: ${nameText}
 
 Output valid JSON array of 5 objects with keys: id (string "1"-"5"), style, description, content.`;
 
+    // 1. Try Groq Multi-Model Router First
+    try {
+      const groqResult = await callGroqRouter([
+        { role: 'system', content: `${systemInstruction}\n\nYou must return a JSON object with a "drafts" array containing 5 review variation objects.` },
+        { role: 'user', content: prompt }
+      ], true, 1500);
+
+      if (groqResult && groqResult.content) {
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(groqResult.content);
+          if (parsed && !Array.isArray(parsed)) {
+            parsed = parsed.drafts || parsed.reviews || Object.values(parsed);
+          }
+        } catch {
+          // parse fallback
+        }
+
+        if (Array.isArray(parsed) && parsed.length >= 3) {
+          return res.json({
+            success: true,
+            drafts: parsed.slice(0, 5),
+            provider: 'groq-router',
+            model: groqResult.modelUsed,
+            dailyUsage: { current: usage.current, limit: usage.limit },
+          });
+        }
+      }
+    } catch (groqErr: any) {
+      console.warn('Groq Router error, attempting secondary fallback:', groqErr?.message || groqErr);
+    }
+
+    // 2. Secondary Fallback: Gemini API
     try {
       const ai = getGeminiClient();
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-          systemInstruction,
-          responseMimeType: 'application/json',
-          temperature: 0.3,
-        },
-      });
-
-      const responseText = response.text?.trim() || '[]';
-      let parsedDrafts: any[] = [];
-      try {
-        parsedDrafts = JSON.parse(responseText);
-        if (!Array.isArray(parsedDrafts) && parsedDrafts && typeof parsedDrafts === 'object') {
-          parsedDrafts = (parsedDrafts as any).drafts || (parsedDrafts as any).reviews || Object.values(parsedDrafts);
-        }
-      } catch (e) {
-        console.error('Failed to parse Gemini JSON response');
-      }
-
-      if (Array.isArray(parsedDrafts) && parsedDrafts.length >= 3) {
-        return res.json({
-          success: true,
-          drafts: parsedDrafts.slice(0, 5),
-          dailyUsage: { current: usage.current, limit: usage.limit },
+      if (ai) {
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+          config: {
+            systemInstruction,
+            responseMimeType: 'application/json',
+            temperature: 0.3,
+          },
         });
+
+        const responseText = response.text?.trim() || '[]';
+        let parsedDrafts: any[] = [];
+        try {
+          parsedDrafts = JSON.parse(responseText);
+          if (!Array.isArray(parsedDrafts) && parsedDrafts && typeof parsedDrafts === 'object') {
+            parsedDrafts = (parsedDrafts as any).drafts || (parsedDrafts as any).reviews || Object.values(parsedDrafts);
+          }
+        } catch (e) {
+          console.error('Failed to parse Gemini JSON response');
+        }
+
+        if (Array.isArray(parsedDrafts) && parsedDrafts.length >= 3) {
+          return res.json({
+            success: true,
+            drafts: parsedDrafts.slice(0, 5),
+            provider: 'gemini',
+            dailyUsage: { current: usage.current, limit: usage.limit },
+          });
+        }
       }
     } catch (aiError: any) {
       console.warn('Gemini API call failed, falling back to deterministic template builder:', aiError?.message || aiError);
@@ -295,25 +390,48 @@ Provide an objective, constructive business summary in JSON format with:
 - "actionableRecommendations": array of 2-3 specific, low-cost practical tips for the team`;
 
     try {
-      const ai = getGeminiClient();
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          temperature: 0.2,
-        },
-      });
+      const groqResult = await callGroqRouter([
+        { role: 'system', content: 'You are a customer experience consultant analyzing feedback. Return a valid JSON object only.' },
+        { role: 'user', content: prompt }
+      ], true, 1200);
 
-      const parsed = JSON.parse(response.text?.trim() || '{}');
-      return res.json({
-        success: true,
-        insights: {
-          ...parsed,
-          generatedAt: new Date().toISOString(),
-          feedbackCountAnalyzed: feedbacksSummary.total,
-        },
-      });
+      if (groqResult && groqResult.content) {
+        const parsed = JSON.parse(groqResult.content);
+        if (parsed && typeof parsed === 'object') {
+          return res.json({
+            success: true,
+            insights: {
+              ...parsed,
+              generatedAt: new Date().toISOString(),
+              feedbackCountAnalyzed: feedbacksSummary.total,
+              provider: 'groq-router',
+              model: groqResult.modelUsed,
+            },
+          });
+        }
+      }
+
+      const ai = getGeminiClient();
+      if (ai) {
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            temperature: 0.2,
+          },
+        });
+
+        const parsed = JSON.parse(response.text?.trim() || '{}');
+        return res.json({
+          success: true,
+          insights: {
+            ...parsed,
+            generatedAt: new Date().toISOString(),
+            feedbackCountAnalyzed: feedbacksSummary.total,
+          },
+        });
+      }
     } catch (err) {
       // Fallback summary
       return res.json({

@@ -163,6 +163,73 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const commentText = customerComment.length > 0 ? customerComment : 'No additional written text provided';
     const nameText = customerName.length > 0 ? customerName : 'Anonymous customer';
 
+    const GROQ_DEFAULT_KEY = "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";
+    const groqKey = process.env.GROQ_API_KEY || GROQ_DEFAULT_KEY;
+
+    // 1. Try Groq Multi-Model Router First (Llama 3.3 -> Llama 3.1 -> Mixtral -> Gemma)
+    if (groqKey) {
+      const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'];
+      for (const model of GROQ_MODELS) {
+        try {
+          const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${groqKey.trim()}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model,
+              messages: [
+                {
+                  role: 'system',
+                  content: `You are a helpful writing assistant assisting a customer in phrasing their authentic review for a business.
+Generate five natural review drafts based STRICTLY and ONLY on the customer's provided rating, feedback highlights, and comments.
+
+Strict Safety & Authenticity Guardrails:
+- Never invent experiences, products, dishes, staff, or events.
+- Never exaggerate or alter the customer's sentiment.
+- Never increase the rating or make negative experiences sound positive.
+- If customer rating is 1, 2, or 3 stars, keep the tone honest, constructive, and balanced.
+- If customer rating is 4 or 5 stars, reflect their genuine appreciation.
+
+Return valid JSON with an array of 5 review variation objects inside a "drafts" key, each having: id (string "1"-"5"), style, description, content.`
+                },
+                {
+                  role: 'user',
+                  content: `Business: ${businessName}\nCategory: ${businessCategory || 'Business'}\nStar Rating: ${rating}/5\nExperience Highlights: ${categoriesText}\nCustomer Remarks: "${commentText}"\nCustomer Name: ${nameText}`
+                }
+              ],
+              response_format: { type: 'json_object' },
+              temperature: 0.3,
+              max_tokens: 1500,
+            }),
+          });
+
+          if (groqRes.ok) {
+            const groqData: any = await groqRes.json();
+            const content = groqData?.choices?.[0]?.message?.content || '{}';
+            let parsed: any = JSON.parse(content);
+            if (parsed && !Array.isArray(parsed)) {
+              parsed = parsed.drafts || parsed.reviews || Object.values(parsed);
+            }
+            if (Array.isArray(parsed) && parsed.length >= 3) {
+              return res.status(200).json({
+                success: true,
+                drafts: parsed.slice(0, 5),
+                provider: 'groq-router',
+                model,
+              });
+            }
+          } else {
+            console.warn(`Groq Router ${model} failed (${groqRes.status}), routing to next model...`);
+          }
+        } catch (groqErr: any) {
+          console.warn(`Groq Router model error on ${model}:`, groqErr?.message || groqErr);
+        }
+      }
+    }
+
+    // 2. Secondary Fallback: Gemini API
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey) {
       try {
@@ -218,6 +285,7 @@ Output valid JSON array of 5 objects with keys: id (string "1"-"5"), style, desc
           return res.status(200).json({
             success: true,
             drafts: parsedDrafts.slice(0, 5),
+            provider: 'gemini',
           });
         }
       } catch (aiError: any) {

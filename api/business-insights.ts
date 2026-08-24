@@ -37,11 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (apiKey) {
-      try {
-        const ai = new GoogleGenAI({ apiKey });
-        const prompt = `You are a customer experience consultant analyzing aggregated, anonymized customer feedback for ${businessName} (${category || 'Small Business'}).
+    const prompt = `You are a customer experience consultant analyzing aggregated, anonymized customer feedback for ${businessName} (${category || 'Small Business'}).
 Total feedback items: ${feedbacksSummary.total}
 Average rating: ${feedbacksSummary.avgRating} / 5
 Rating distribution: 5★: ${feedbacksSummary.ratings?.['5'] || 0}, 4★: ${feedbacksSummary.ratings?.['4'] || 0}, 3★: ${feedbacksSummary.ratings?.['3'] || 0}, 2★: ${feedbacksSummary.ratings?.['2'] || 0}, 1★: ${feedbacksSummary.ratings?.['1'] || 0}
@@ -54,6 +50,65 @@ Provide an objective, constructive business summary in JSON format with:
 - "customerSentimentSummary": a 2-3 sentence executive summary of overall customer sentiment
 - "actionableRecommendations": array of 2-3 specific, low-cost practical tips for the team`;
 
+    const GROQ_DEFAULT_KEY = "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";
+    const groqKey = process.env.GROQ_API_KEY || GROQ_DEFAULT_KEY;
+
+    // 1. Try Groq Multi-Model Router First
+    if (groqKey) {
+      const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'];
+      for (const model of GROQ_MODELS) {
+        try {
+          const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${groqKey.trim()}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model,
+              messages: [
+                {
+                  role: 'system',
+                  content: 'You are a customer experience consultant analyzing feedback. Return a valid JSON object with strengths, areasForImprovement, customerSentimentSummary, actionableRecommendations.',
+                },
+                {
+                  role: 'user',
+                  content: prompt,
+                },
+              ],
+              response_format: { type: 'json_object' },
+              temperature: 0.2,
+              max_tokens: 1200,
+            }),
+          });
+
+          if (groqRes.ok) {
+            const data: any = await groqRes.json();
+            const parsed = JSON.parse(data?.choices?.[0]?.message?.content || '{}');
+            if (parsed && typeof parsed === 'object') {
+              return res.status(200).json({
+                success: true,
+                insights: {
+                  ...parsed,
+                  generatedAt: new Date().toISOString(),
+                  feedbackCountAnalyzed: feedbacksSummary.total,
+                  provider: 'groq-router',
+                  model,
+                },
+              });
+            }
+          }
+        } catch (groqErr: any) {
+          console.warn(`Groq Router insight error on ${model}:`, groqErr?.message || groqErr);
+        }
+      }
+    }
+
+    // 2. Secondary Fallback: Gemini API
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey) {
+      try {
+        const ai = new GoogleGenAI({ apiKey });
         const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
           contents: prompt,
