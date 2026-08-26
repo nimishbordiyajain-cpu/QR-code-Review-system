@@ -50,6 +50,11 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onStartDemo }) => {
                   Business Sign In
                 </button>
               </li>
+              <li>
+                <button onClick={() => onNavigate('admin')} className="hover:text-amber-300 text-slate-400 transition-colors cursor-pointer text-[11px]">
+                  Admin Portal
+                </button>
+              </li>
             </ul>
           </div>
 

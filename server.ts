@@ -3,7 +3,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
-import { getAdminAuth, getAdminFirestore, getAdminEmails } from './api/firebaseAdmin';
+import { getAdminAuth, getAdminFirestore, getAdminEmails, ensureAdminUserAccount } from './api/firebaseAdmin';
 
 dotenv.config();
 
@@ -862,8 +862,13 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  app.listen(PORT, '0.0.0.0', async () => {
     console.log(`Server running on port ${PORT}`);
+    try {
+      await ensureAdminUserAccount('admin@reviewai.com', 'admin123@nimish', 'Super Admin');
+    } catch (e) {
+      console.warn('Initial admin provisioning note:', e);
+    }
   });
 }
 

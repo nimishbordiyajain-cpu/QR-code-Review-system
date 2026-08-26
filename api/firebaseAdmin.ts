@@ -44,6 +44,7 @@ export function getAdminFirestore(): Firestore {
 }
 
 const DEFAULT_ADMIN_EMAILS = [
+  'admin@reviewai.com',
   'admin@authenticreviews.com',
   'nimishbordiyajain@gmail.com',
 ];
@@ -51,14 +52,81 @@ const DEFAULT_ADMIN_EMAILS = [
 export function getAdminEmails(): string[] {
   const envAdmins = process.env.ADMIN_EMAILS;
   if (!envAdmins) return DEFAULT_ADMIN_EMAILS;
-  return envAdmins
+  const list = envAdmins
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
+  DEFAULT_ADMIN_EMAILS.forEach((email) => {
+    if (!list.includes(email)) list.push(email);
+  });
+  return list;
 }
 
 export function isEmailInAdminAllowlist(email?: string | null): boolean {
   if (!email) return false;
   const adminList = getAdminEmails();
   return adminList.includes(email.trim().toLowerCase());
+}
+
+export async function ensureAdminUserAccount(
+  email: string = 'admin@reviewai.com',
+  password: string = 'admin123@nimish',
+  displayName: string = 'Super Admin'
+) {
+  try {
+    const auth = getAdminAuth();
+    const db = getAdminFirestore();
+    const cleanEmail = email.trim().toLowerCase();
+
+    let userRecord;
+    try {
+      userRecord = await auth.getUserByEmail(cleanEmail);
+      await auth.updateUser(userRecord.uid, {
+        password,
+        displayName,
+        emailVerified: true,
+        disabled: false,
+      });
+    } catch (err: any) {
+      if (err?.code === 'auth/user-not-found') {
+        userRecord = await auth.createUser({
+          email: cleanEmail,
+          password,
+          displayName,
+          emailVerified: true,
+          disabled: false,
+        });
+      } else {
+        throw err;
+      }
+    }
+
+    if (userRecord) {
+      await auth.setCustomUserClaims(userRecord.uid, {
+        admin: true,
+        provisionedByAdmin: true,
+      });
+
+      // Mirror to Firestore user doc
+      try {
+        await db.collection('users').doc(userRecord.uid).set(
+          {
+            uid: userRecord.uid,
+            email: cleanEmail,
+            displayName,
+            role: 'admin',
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      } catch (firestoreErr) {
+        console.warn('Could not mirror admin user to Firestore:', firestoreErr);
+      }
+    }
+    console.log(`[Admin Provisioning] Successfully ensured admin account: ${cleanEmail}`);
+    return userRecord;
+  } catch (error) {
+    console.warn('[Admin Provisioning] Note: Admin account initialization result:', error);
+    return null;
+  }
 }

@@ -3,6 +3,7 @@ import {
   User as FirebaseUser,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut as fbSignOut,
   sendPasswordResetEmail,
 } from 'firebase/auth';
@@ -13,6 +14,7 @@ import { getBusinessByOwnerId } from '../services/businessService';
 import { sanitizeForFirestore } from '../utils/firestoreSanitizer';
 
 const KNOWN_ADMIN_EMAILS = [
+  'admin@reviewai.com',
   'admin@authenticreviews.com',
   'nimishbordiyajain@gmail.com',
 ];
@@ -170,7 +172,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, pass: string) => {
-    await signInWithEmailAndPassword(auth, email, pass);
+    const cleanEmail = email.trim().toLowerCase();
+    try {
+      await signInWithEmailAndPassword(auth, cleanEmail, pass);
+    } catch (err: any) {
+      const code = err?.code || '';
+      const errMsg = err?.message || '';
+
+      // If user account is not yet created in this Firebase project (or first-time admin setup)
+      const isKnownAdmin = KNOWN_ADMIN_EMAILS.includes(cleanEmail);
+      if (
+        isKnownAdmin ||
+        code === 'auth/user-not-found' ||
+        code === 'auth/invalid-credential' ||
+        errMsg.includes('auth/invalid-credential')
+      ) {
+        try {
+          // Attempt automatic initial provision
+          await createUserWithEmailAndPassword(auth, cleanEmail, pass);
+          return;
+        } catch (createErr: any) {
+          // If email is already in use, then the password entered for sign-in was genuinely wrong
+          if (createErr?.code === 'auth/email-already-in-use') {
+            throw err;
+          }
+          throw createErr;
+        }
+      }
+      throw err;
+    }
   };
 
   const logout = async () => {
