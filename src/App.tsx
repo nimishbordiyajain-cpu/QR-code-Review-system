@@ -142,9 +142,16 @@ function AppContent() {
   useEffect(() => {
     if (loading) return;
 
-    const protectedViews = ['dashboard', 'qr', 'feedback', 'settings'];
+    const protectedViews = ['dashboard', 'qr', 'feedback', 'settings', 'admin'];
     if (protectedViews.includes(currentView) && !currentUser && !isDemoMode) {
       navigate('login');
+      return;
+    }
+
+    // Explicit check: Non-admin logged in users cannot access admin console
+    if (currentView === 'admin' && currentUser && !isAdmin && !isDemoMode) {
+      navigate('dashboard');
+      return;
     }
 
     if (currentUser && !currentBusiness && currentView === 'dashboard' && !isAdmin) {

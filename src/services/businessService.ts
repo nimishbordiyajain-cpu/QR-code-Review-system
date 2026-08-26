@@ -21,12 +21,41 @@ export function generateSlug(name: string): string {
     .replace(/(^-|-$)+/g, '');
 }
 
+export async function generateUniqueBusinessSlug(name: string): Promise<string> {
+  const baseSlug = generateSlug(name) || 'business';
+
+  // 1. Try standard random suffix up to 5 times
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidateSuffix = Math.random().toString(36).substring(2, 6);
+    const candidateSlug = `${baseSlug}-${candidateSuffix}`;
+
+    try {
+      const q = query(
+        collection(db, 'businesses'),
+        where('slug', '==', candidateSlug),
+        limit(1)
+      );
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        return candidateSlug;
+      }
+    } catch (err) {
+      console.warn('Could not query candidate slug, continuing:', err);
+    }
+  }
+
+  // 2. High-entropy fallback if 5 attempts collided
+  const fallbackSuffix = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID().replace(/-/g, '').substring(0, 8)
+    : `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
+  return `${baseSlug}-${fallbackSuffix}`;
+}
+
 export async function createBusinessProfile(
   data: Omit<BusinessProfile, 'id' | 'createdAt' | 'status' | 'slug'>
 ): Promise<BusinessProfile> {
   const businessId = `biz_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-  const baseSlug = generateSlug(data.name);
-  const slug = `${baseSlug}-${Math.random().toString(36).substring(2, 6)}`;
+  const slug = await generateUniqueBusinessSlug(data.name);
 
   const newBusiness: BusinessProfile = {
     ...data,
@@ -63,7 +92,7 @@ export async function getBusinessBySlug(slug: string): Promise<BusinessProfile |
   try {
     const cleanSlug = slug.toLowerCase().trim();
 
-    // 1. Direct slug match
+    // 1. Direct slug exact match
     const q = query(
       collection(db, 'businesses'),
       where('slug', '==', cleanSlug),
@@ -74,23 +103,18 @@ export async function getBusinessBySlug(slug: string): Promise<BusinessProfile |
       return snap.docs[0].data() as BusinessProfile;
     }
 
-    // 2. Direct document ID match
-    const docSnap = await getDoc(doc(db, 'businesses', slug));
+    // 2. Direct document ID exact match (if router passed document ID)
+    const docSnap = await getDoc(doc(db, 'businesses', cleanSlug));
     if (docSnap.exists()) {
       return docSnap.data() as BusinessProfile;
     }
 
-    // 3. Fallback: Search all businesses if prefix/name matches (e.g. mudit-traders vs mudit-traders-abcd)
+    // 3. Fallback: Exact match iteration across collection (handles any index propagation latency)
     const allSnap = await getDocs(collection(db, 'businesses'));
     if (!allSnap.empty) {
       for (const d of allSnap.docs) {
         const data = d.data() as BusinessProfile;
-        if (
-          data.slug === cleanSlug ||
-          data.id === slug ||
-          (data.slug && data.slug.startsWith(cleanSlug)) ||
-          (data.name && generateSlug(data.name) === cleanSlug)
-        ) {
+        if (data.slug === cleanSlug || data.id === cleanSlug) {
           return data;
         }
       }
@@ -100,7 +124,8 @@ export async function getBusinessBySlug(slug: string): Promise<BusinessProfile |
   } catch (error) {
     console.error('Error fetching business by slug:', error);
     try {
-      const docSnap = await getDoc(doc(db, 'businesses', slug));
+      const cleanSlug = slug.toLowerCase().trim();
+      const docSnap = await getDoc(doc(db, 'businesses', cleanSlug));
       if (docSnap.exists()) {
         return docSnap.data() as BusinessProfile;
       }

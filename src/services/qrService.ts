@@ -20,7 +20,10 @@ export async function createQRCode(
   name: string,
   location: string
 ): Promise<QRCodeItem> {
-  const qrId = `qr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const uuid = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+  const qrId = `qr_${uuid}`;
   const qrSlug = generateSlug(name || location || 'point');
 
   const newQR: QRCodeItem = {

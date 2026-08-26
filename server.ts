@@ -1,6 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
@@ -8,11 +7,11 @@ import { getAdminAuth, getAdminFirestore, getAdminEmails } from './api/firebaseA
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Runtime-safe directory resolution across both CommonJS (production bundle) and ESM (tsx dev)
+const safeDirname = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Security Hardening: Disable fingerprinting headers
 app.disable('x-powered-by');
@@ -378,8 +377,16 @@ app.post('/api/admin-create-business', async (req: Request, res: Response) => {
     });
 
     const businessId = `biz_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const baseSlug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-    const slug = `${baseSlug}-${Math.random().toString(36).substring(2, 6)}`;
+    const baseSlug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') || 'business';
+    
+    let slug = `${baseSlug}-${Math.random().toString(36).substring(2, 6)}`;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const checkSnap = await adminDb.collection('businesses').where('slug', '==', slug).limit(1).get();
+      if (checkSnap.empty) {
+        break;
+      }
+      slug = `${baseSlug}-${Math.random().toString(36).substring(2, 6)}`;
+    }
     const nowIso = new Date().toISOString();
 
     const businessData = {
