@@ -105,17 +105,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
               <button
                 id="hero-get-started-btn"
-                onClick={() => onNavigate('register')}
-                className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-base shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+                onClick={() => onNavigate('login')}
+                className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-base shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>Get Started Free</span>
+                <span>Business Sign In</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
               <button
                 id="hero-try-demo-btn"
                 onClick={triggerDemo}
-                className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 font-bold text-base shadow-sm hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2.5"
+                className="w-full sm:w-auto px-7 py-4 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 font-bold text-base shadow-sm hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
               >
                 <Play className="w-4 h-4 text-amber-500 fill-amber-500" />
                 <span>Try Demo Café</span>
@@ -497,17 +497,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button
               id="cta-get-started-btn"
-              onClick={() => onNavigate('register')}
-              className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-white text-indigo-700 hover:bg-slate-100 font-extrabold text-sm shadow-md transition-all"
+              onClick={() => onNavigate('login')}
+              className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-white text-indigo-700 hover:bg-slate-100 font-extrabold text-sm shadow-md transition-all cursor-pointer"
             >
-              Create Free Business Account
+              Sign In to Business Portal
             </button>
             <button
               id="cta-demo-btn"
               onClick={triggerDemo}
-              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-indigo-800/80 hover:bg-indigo-900 text-white font-bold text-sm border border-indigo-400/40 transition-all"
+              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-indigo-800/80 hover:bg-indigo-900 text-white font-bold text-sm border border-indigo-400/40 transition-all cursor-pointer"
             >
-              Try Demo Without Registration
+              Try Interactive Live Demo
             </button>
           </div>
         </div>

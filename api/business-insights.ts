@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
+import { checkRateLimit, getClientIp } from './rateLimiter';
+import { getAdminFirestore } from './firebaseAdmin';
 
 function sanitizeInputString(val: any, maxLength: number = 500): string {
   if (typeof val !== 'string') return '';
@@ -15,10 +17,86 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
+  // Persistent IP-based rate limiting (5 requests per minute for analytics insights)
+  const clientIp = getClientIp(req.headers, req.socket?.remoteAddress);
+  const rateLimit = await checkRateLimit(clientIp, 'business-insights', 5, 60);
+  if (!rateLimit.allowed) {
+    return res.status(429).json({
+      success: false,
+      error: 'Too many business insights requests. Please wait a minute before trying again.',
+      retryAfterSeconds: rateLimit.resetInSeconds,
+    });
+  }
+
   try {
-    const { businessName: rawBizName, category: rawCat, feedbacksSummary } = req.body || {};
+    const { businessId: rawBizId, businessName: rawBizName, category: rawCat, feedbacksSummary } = req.body || {};
+    const businessId = sanitizeInputString(rawBizId, 100);
     const businessName = sanitizeInputString(rawBizName, 100);
     const category = sanitizeInputString(rawCat, 60);
+
+    // Validate business status & limits if businessId provided
+    let dailyLimit = 50;
+    let currentDayUsage = 0;
+    let limitReached = false;
+
+    if (businessId) {
+      try {
+        const adminDb = getAdminFirestore();
+        const bizDoc = await adminDb.collection('businesses').doc(businessId).get();
+        if (bizDoc.exists) {
+          const bizData = bizDoc.data();
+          if (bizData?.status === 'disabled') {
+            return res.status(403).json({
+              success: false,
+              error: 'Business account is currently inactive. Contact your administrator for assistance.',
+            });
+          }
+          if (typeof bizData?.dailyGenerationLimit === 'number' && bizData.dailyGenerationLimit > 0) {
+            dailyLimit = bizData.dailyGenerationLimit;
+          }
+        }
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        const usageRef = adminDb.collection('dailyUsage').doc(`${businessId}_${todayStr}`);
+        const usageSnap = await usageRef.get();
+        if (usageSnap.exists) {
+          currentDayUsage = usageSnap.data()?.count || 0;
+        }
+
+        if (currentDayUsage >= dailyLimit) {
+          limitReached = true;
+        }
+      } catch (checkErr) {
+        console.warn('Daily usage check non-fatal warning:', checkErr);
+      }
+    }
+
+    if (limitReached) {
+      return res.status(429).json({
+        success: false,
+        error: 'Daily AI insight generation limit reached for this business account. Contact your administrator to upgrade.',
+      });
+    }
+
+    const recordUsageIncrement = async () => {
+      if (!businessId) return;
+      try {
+        const adminDb = getAdminFirestore();
+        const todayStr = new Date().toISOString().split('T')[0];
+        const usageRef = adminDb.collection('dailyUsage').doc(`${businessId}_${todayStr}`);
+        await usageRef.set(
+          {
+            businessId,
+            date: todayStr,
+            count: (currentDayUsage || 0) + 1,
+            lastUsedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      } catch (err) {
+        console.warn('Failed to record AI usage increment:', err);
+      }
+    };
 
     if (!feedbacksSummary || !feedbacksSummary.total || feedbacksSummary.total < 3) {
       return res.status(200).json({
@@ -50,11 +128,10 @@ Provide an objective, constructive business summary in JSON format with:
 - "customerSentimentSummary": a 2-3 sentence executive summary of overall customer sentiment
 - "actionableRecommendations": array of 2-3 specific, low-cost practical tips for the team`;
 
-    const GROQ_DEFAULT_KEY = "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";
-    const groqKey = process.env.GROQ_API_KEY || GROQ_DEFAULT_KEY;
+    const groqKey = process.env.GROQ_API_KEY;
 
     // 1. Try Groq Multi-Model Router First
-    if (groqKey) {
+    if (groqKey && groqKey.trim()) {
       const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'];
       for (const model of GROQ_MODELS) {
         try {
@@ -86,6 +163,7 @@ Provide an objective, constructive business summary in JSON format with:
             const data: any = await groqRes.json();
             const parsed = JSON.parse(data?.choices?.[0]?.message?.content || '{}');
             if (parsed && typeof parsed === 'object') {
+              await recordUsageIncrement();
               return res.status(200).json({
                 success: true,
                 insights: {
@@ -119,6 +197,7 @@ Provide an objective, constructive business summary in JSON format with:
         });
 
         const parsed = JSON.parse(response.text?.trim() || '{}');
+        await recordUsageIncrement();
         return res.status(200).json({
           success: true,
           insights: {

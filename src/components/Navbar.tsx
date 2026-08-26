@@ -31,7 +31,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleDemoMode,
   onStartDemo,
 }) => {
-  const { currentUser, userProfile, currentBusiness, logout, isDemoMode: authIsDemoMode, toggleDemoMode } = useAuth();
+  const { currentUser, userProfile, currentBusiness, logout, isDemoMode: authIsDemoMode, toggleDemoMode, isAdmin } = useAuth();
   const isDemoMode = propIsDemoMode !== undefined ? propIsDemoMode : authIsDemoMode;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -118,7 +118,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {navItem('qr', 'QR Codes', <QrCode className="w-3.5 h-3.5" />)}
                 {navItem('feedback', 'Customer Feedback', <MessageSquare className="w-3.5 h-3.5" />)}
                 {navItem('settings', 'Settings', <Settings className="w-3.5 h-3.5" />)}
-                {userProfile?.role === 'admin' &&
+                {isAdmin &&
                   navItem('admin', 'Admin Panel', <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />)}
               </nav>
             )}
@@ -167,11 +167,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) : isDemoMode ? (
               <div className="flex items-center gap-2">
                 <button
-                  id="nav-register-btn"
-                  onClick={() => onNavigate('register')}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 shadow-2xs transition-all"
+                  id="nav-login-btn"
+                  onClick={() => onNavigate('login')}
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 shadow-2xs transition-all cursor-pointer"
                 >
-                  Create Free Account
+                  Business Sign In
                 </button>
               </div>
             ) : (
@@ -179,16 +179,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   id="nav-login-btn"
                   onClick={() => onNavigate('login')}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 shadow-2xs transition-all cursor-pointer"
                 >
                   Sign In
-                </button>
-                <button
-                  id="nav-get-started-btn"
-                  onClick={() => onNavigate('register')}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 shadow-2xs transition-all"
-                >
-                  Get Started Free
                 </button>
               </div>
             )}
@@ -230,7 +223,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               {navItem('qr', 'QR Codes', <QrCode className="w-4 h-4" />)}
               {navItem('feedback', 'Customer Feedback', <MessageSquare className="w-4 h-4" />)}
               {navItem('settings', 'Settings', <Settings className="w-4 h-4" />)}
-              {userProfile?.role === 'admin' &&
+              {isAdmin &&
                 navItem('admin', 'Admin Panel', <ShieldAlert className="w-4 h-4 text-amber-600" />)}
 
               <div className="pt-4 mt-2 border-t border-slate-100 flex items-center justify-between">
@@ -241,19 +234,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {currentUser ? (
                   <button
                     onClick={handleLogout}
-                    className="px-3 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 rounded-lg"
+                    className="px-3 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 rounded-lg cursor-pointer"
                   >
                     Log Out
                   </button>
                 ) : (
                   <button
                     onClick={() => {
-                      onNavigate('register');
+                      onNavigate('login');
                       setMobileMenuOpen(false);
                     }}
-                    className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 rounded-lg"
+                    className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 rounded-lg cursor-pointer"
                   >
-                    Sign Up Free
+                    Sign In
                   </button>
                 )}
               </div>
@@ -265,7 +258,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onNavigate('landing');
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
+                className="w-full text-left px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg cursor-pointer"
               >
                 Home
               </button>
@@ -274,7 +267,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   handleDemoClick();
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-3 py-2 text-sm font-medium text-amber-800 bg-amber-50 rounded-lg flex items-center justify-between"
+                className="w-full text-left px-3 py-2 text-sm font-medium text-amber-800 bg-amber-50 rounded-lg flex items-center justify-between cursor-pointer"
               >
                 <span>Try Live Demo Café</span>
                 <ChevronRight className="w-4 h-4 text-amber-600" />
@@ -284,18 +277,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onNavigate('login');
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg"
+                className="w-full text-center px-4 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs cursor-pointer"
               >
-                Sign In
-              </button>
-              <button
-                onClick={() => {
-                  onNavigate('register');
-                  setMobileMenuOpen(false);
-                }}
-                className="w-full text-center px-4 py-2.5 text-sm font-bold text-white bg-slate-900 rounded-xl shadow-sm"
-              >
-                Get Started Free
+                Business Sign In
               </button>
             </div>
           )}

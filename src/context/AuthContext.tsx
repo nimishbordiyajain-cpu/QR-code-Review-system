@@ -3,10 +3,8 @@ import {
   User as FirebaseUser,
   onAuthStateChanged,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   signOut as fbSignOut,
   sendPasswordResetEmail,
-  updateProfile
 } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -14,20 +12,26 @@ import { BusinessProfile, BusinessUser } from '../types';
 import { getBusinessByOwnerId } from '../services/businessService';
 import { sanitizeForFirestore } from '../utils/firestoreSanitizer';
 
+const KNOWN_ADMIN_EMAILS = [
+  'admin@authenticreviews.com',
+  'nimishbordiyajain@gmail.com',
+];
+
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   userProfile: BusinessUser | null;
   currentBusiness: BusinessProfile | null;
   setCurrentBusiness: (business: BusinessProfile | null) => void;
+  isAdmin: boolean;
   loading: boolean;
   isDemoMode: boolean;
   setIsDemoMode: (isDemo: boolean) => void;
   toggleDemoMode: () => void;
   login: (email: string, pass: string) => Promise<void>;
-  register: (email: string, pass: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   refreshBusiness: () => Promise<void>;
+  refreshClaims: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,11 +40,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<BusinessUser | null>(null);
   const [currentBusiness, setCurrentBusiness] = useState<BusinessProfile | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
 
   const toggleDemoMode = () => {
     setIsDemoMode((prev) => !prev);
+  };
+
+  const refreshClaims = async (): Promise<boolean> => {
+    if (!auth.currentUser) return false;
+    try {
+      const idToken = await auth.currentUser.getIdToken(true);
+      // Attempt server sync
+      try {
+        await fetch('/api/sync-claims', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({ idToken }),
+        });
+      } catch {
+        // Fallback continues
+      }
+
+      const tokenResult = await auth.currentUser.getIdTokenResult(true);
+      const isClaimAdmin = Boolean(tokenResult.claims.admin);
+      const isEmailAdmin = auth.currentUser.email
+        ? KNOWN_ADMIN_EMAILS.includes(auth.currentUser.email.toLowerCase())
+        : false;
+      const finalAdmin = isClaimAdmin || isEmailAdmin;
+      setIsAdmin(finalAdmin);
+      return finalAdmin;
+    } catch (err) {
+      console.warn('Error refreshing token claims:', err);
+      return false;
+    }
   };
 
   const refreshBusiness = async () => {
@@ -59,24 +96,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCurrentUser(user);
       if (user) {
         try {
-          // Fetch or initialize user profile in Firestore
+          // 1. Check custom claims for admin authorization
+          const tokenResult = await user.getIdTokenResult();
+          let isUserAdmin = Boolean(tokenResult.claims.admin);
+          const isEmailAdmin = user.email
+            ? KNOWN_ADMIN_EMAILS.includes(user.email.toLowerCase())
+            : false;
+
+          // If user email matches admin list but claim not yet propagated, sync with server
+          if (isEmailAdmin && !isUserAdmin) {
+            try {
+              const idToken = await user.getIdToken();
+              const syncRes = await fetch('/api/sync-claims', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({ idToken }),
+              });
+              if (syncRes.ok) {
+                const refreshed = await user.getIdTokenResult(true);
+                isUserAdmin = Boolean(refreshed.claims.admin);
+              }
+            } catch (syncErr) {
+              console.warn('Admin claim server sync warning:', syncErr);
+            }
+          }
+
+          const resolvedIsAdmin = isUserAdmin || isEmailAdmin;
+          setIsAdmin(resolvedIsAdmin);
+
+          // 2. Fetch or initialize user profile in Firestore
+          // Note: All user documents are stored with role: 'owner' to prevent client-side privilege escalation
           const userDocRef = doc(db, 'users', user.uid);
           const userSnap = await getDoc(userDocRef);
           if (userSnap.exists()) {
-            setUserProfile(userSnap.data() as BusinessUser);
+            const data = userSnap.data() as BusinessUser;
+            setUserProfile({
+              ...data,
+              role: resolvedIsAdmin ? 'admin' : 'owner',
+            });
           } else {
             const newProfile: BusinessUser = {
               uid: user.uid,
               email: user.email || '',
               displayName: user.displayName || '',
-              role: user.email === 'admin@authenticreviews.com' ? 'admin' : 'owner',
+              role: 'owner',
               createdAt: new Date().toISOString(),
             };
             await setDoc(userDocRef, sanitizeForFirestore(newProfile));
-            setUserProfile(newProfile);
+            setUserProfile({
+              ...newProfile,
+              role: resolvedIsAdmin ? 'admin' : 'owner',
+            });
           }
 
-          // Fetch associated business profile
+          // 3. Fetch associated business profile
           const business = await getBusinessByOwnerId(user.uid);
           setCurrentBusiness(business);
         } catch (error) {
@@ -85,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUserProfile(null);
         setCurrentBusiness(null);
+        setIsAdmin(false);
       }
       setLoading(false);
     });
@@ -96,26 +173,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signInWithEmailAndPassword(auth, email, pass);
   };
 
-  const register = async (email: string, pass: string, name: string) => {
-    const cred = await createUserWithEmailAndPassword(auth, email, pass);
-    if (cred.user) {
-      await updateProfile(cred.user, { displayName: name });
-      const newProfile: BusinessUser = {
-        uid: cred.user.uid,
-        email,
-        displayName: name,
-        role: 'owner',
-        createdAt: new Date().toISOString(),
-      };
-      await setDoc(doc(db, 'users', cred.user.uid), sanitizeForFirestore(newProfile));
-      setUserProfile(newProfile);
-    }
-  };
-
   const logout = async () => {
     await fbSignOut(auth);
     setCurrentBusiness(null);
     setUserProfile(null);
+    setIsAdmin(false);
   };
 
   const resetPassword = async (email: string) => {
@@ -129,15 +191,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         userProfile,
         currentBusiness,
         setCurrentBusiness,
+        isAdmin,
         loading,
         isDemoMode,
         setIsDemoMode,
         toggleDemoMode,
         login,
-        register,
         logout,
         resetPassword,
         refreshBusiness,
+        refreshClaims,
       }}
     >
       {children}

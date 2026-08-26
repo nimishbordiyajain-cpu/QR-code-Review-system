@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
+import { checkRateLimit, getClientIp } from './rateLimiter';
+import { getAdminFirestore } from './firebaseAdmin';
 
 function sanitizeInputString(val: any, maxLength: number = 500): string {
   if (typeof val !== 'string') return '';
@@ -126,8 +128,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
 
+  // Persistent IP-based rate limiting (10 requests per minute)
+  const clientIp = getClientIp(req.headers, req.socket?.remoteAddress);
+  const rateLimit = await checkRateLimit(clientIp, 'generate-reviews', 10, 60);
+  if (!rateLimit.allowed) {
+    return res.status(429).json({
+      success: false,
+      error: 'Too many review generation requests. Please wait a minute before trying again.',
+      retryAfterSeconds: rateLimit.resetInSeconds,
+    });
+  }
+
   try {
     const {
+      businessId: rawBizId,
       businessName: rawBizName,
       businessCategory: rawBizCategory,
       rating: rawRating,
@@ -137,6 +151,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } = req.body || {};
 
     const rating = typeof rawRating === 'number' ? Math.max(1, Math.min(5, Math.round(rawRating))) : null;
+    const businessId = sanitizeInputString(rawBizId, 100);
     const businessName = sanitizeInputString(rawBizName, 100);
     const businessCategory = sanitizeInputString(rawBizCategory, 60);
     const customerComment = sanitizeInputString(rawComment, 800);
@@ -163,11 +178,79 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const commentText = customerComment.length > 0 ? customerComment : 'No additional written text provided';
     const nameText = customerName.length > 0 ? customerName : 'Anonymous customer';
 
-    const GROQ_DEFAULT_KEY = "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";
-    const groqKey = process.env.GROQ_API_KEY || GROQ_DEFAULT_KEY;
+    // Per-business AI Usage & Status Validation
+    let dailyLimit = 50;
+    let currentDayUsage = 0;
+    let limitReached = false;
+
+    if (businessId) {
+      try {
+        const adminDb = getAdminFirestore();
+        const bizDoc = await adminDb.collection('businesses').doc(businessId).get();
+        if (bizDoc.exists) {
+          const bizData = bizDoc.data();
+          if (bizData?.status === 'disabled') {
+            return res.status(200).json({
+              success: true,
+              provider: 'deterministic-fallback',
+              drafts: generateFallbackDrafts(businessName, rating, selectedCategories, customerComment),
+              warning: 'Account is inactive; using standard review templates.',
+            });
+          }
+          if (typeof bizData?.dailyGenerationLimit === 'number' && bizData.dailyGenerationLimit > 0) {
+            dailyLimit = bizData.dailyGenerationLimit;
+          }
+        }
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        const usageRef = adminDb.collection('dailyUsage').doc(`${businessId}_${todayStr}`);
+        const usageSnap = await usageRef.get();
+        if (usageSnap.exists) {
+          currentDayUsage = usageSnap.data()?.count || 0;
+        }
+
+        if (currentDayUsage >= dailyLimit) {
+          limitReached = true;
+        }
+      } catch (checkErr) {
+        console.warn('Daily usage check non-fatal warning:', checkErr);
+      }
+    }
+
+    if (limitReached) {
+      return res.status(200).json({
+        success: true,
+        provider: 'deterministic-fallback',
+        limitReached: true,
+        drafts: generateFallbackDrafts(businessName, rating, selectedCategories, customerComment),
+        warning: 'Daily AI generation limit reached for this business. Using standard templates.',
+      });
+    }
+
+    const recordUsageIncrement = async () => {
+      if (!businessId) return;
+      try {
+        const adminDb = getAdminFirestore();
+        const todayStr = new Date().toISOString().split('T')[0];
+        const usageRef = adminDb.collection('dailyUsage').doc(`${businessId}_${todayStr}`);
+        await usageRef.set(
+          {
+            businessId,
+            date: todayStr,
+            count: (currentDayUsage || 0) + 1,
+            lastUsedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      } catch (err) {
+        console.warn('Failed to record AI usage increment:', err);
+      }
+    };
+
+    const groqKey = process.env.GROQ_API_KEY;
 
     // 1. Try Groq Multi-Model Router First (Llama 3.3 -> Llama 3.1 -> Mixtral -> Gemma)
-    if (groqKey) {
+    if (groqKey && groqKey.trim()) {
       const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'];
       for (const model of GROQ_MODELS) {
         try {
@@ -213,6 +296,7 @@ Return valid JSON with an array of 5 review variation objects inside a "drafts" 
               parsed = parsed.drafts || parsed.reviews || Object.values(parsed);
             }
             if (Array.isArray(parsed) && parsed.length >= 3) {
+              await recordUsageIncrement();
               return res.status(200).json({
                 success: true,
                 drafts: parsed.slice(0, 5),
@@ -282,6 +366,7 @@ Output valid JSON array of 5 objects with keys: id (string "1"-"5"), style, desc
         }
 
         if (Array.isArray(parsedDrafts) && parsedDrafts.length >= 3) {
+          await recordUsageIncrement();
           return res.status(200).json({
             success: true,
             drafts: parsedDrafts.slice(0, 5),

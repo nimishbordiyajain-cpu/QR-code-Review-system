@@ -1,0 +1,192 @@
+import { getAdminFirestore } from './firebaseAdmin';
+
+// In-memory sliding window fallback
+interface WindowRecord {
+  count: number;
+  windowStart: number;
+}
+
+const memoryStore = new Map<string, WindowRecord>();
+
+export function getClientIp(headers: Record<string, string | string[] | undefined>, socketRemoteAddress?: string): string {
+  const forwarded = headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') {
+    return forwarded.split(',')[0].trim();
+  }
+  if (Array.isArray(forwarded) && forwarded.length > 0) {
+    return forwarded[0].trim();
+  }
+  const realIp = headers['x-real-ip'];
+  if (typeof realIp === 'string') {
+    return realIp.trim();
+  }
+  return socketRemoteAddress || '127.0.0.1';
+}
+
+export interface RateLimitResult {
+  allowed: boolean;
+  limit: number;
+  remaining: number;
+  resetInSeconds: number;
+}
+
+/**
+ * Enforces a sliding window rate limit per IP/identifier.
+ * Persists to Firestore or KV/Redis if available, with in-memory fallback.
+ *
+ * @param identifier - Key such as client IP or business ID
+ * @param action - Action name like 'generate-reviews' or 'business-insights'
+ * @param maxRequests - Max permitted requests within the window (e.g., 10 for reviews, 5 for insights)
+ * @param windowSeconds - Duration of the window in seconds (default: 60)
+ */
+export async function checkRateLimit(
+  identifier: string,
+  action: string,
+  maxRequests: number,
+  windowSeconds: number = 60
+): Promise<RateLimitResult> {
+  const sanitizedId = (identifier || 'anonymous').replace(/[^a-zA-Z0-9_.-]/g, '_').slice(0, 80);
+  const key = `${action}_${sanitizedId}`;
+  const now = Date.now();
+  const windowMs = windowSeconds * 1000;
+
+  // 1. Try Upstash / Vercel KV if configured
+  const kvUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const kvToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+
+  if (kvUrl && kvToken) {
+    try {
+      const response = await fetch(`${kvUrl}/pipeline`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${kvToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify([
+          ['INCR', `rl:${key}`],
+          ['EXPIRE', `rl:${key}`, windowSeconds],
+        ]),
+      });
+
+      if (response.ok) {
+        const results: any = await response.json();
+        const currentCount = Number(results?.[0]?.result || 1);
+        const allowed = currentCount <= maxRequests;
+        return {
+          allowed,
+          limit: maxRequests,
+          remaining: Math.max(0, maxRequests - currentCount),
+          resetInSeconds: windowSeconds,
+        };
+      }
+    } catch (kvErr) {
+      console.warn('KV rate limit error, falling back to Firestore/Memory:', kvErr);
+    }
+  }
+
+  // 2. Try Firestore Admin Persistence
+  try {
+    const firestore = getAdminFirestore();
+    if (firestore) {
+      const docRef = firestore.collection('rateLimits').doc(key);
+      const snapshot = await docRef.get();
+
+      if (!snapshot.exists) {
+        await docRef.set({
+          count: 1,
+          windowStart: now,
+          action,
+          identifier: sanitizedId,
+          lastUpdatedAt: now,
+        });
+        return {
+          allowed: true,
+          limit: maxRequests,
+          remaining: maxRequests - 1,
+          resetInSeconds: windowSeconds,
+        };
+      }
+
+      const data = snapshot.data() || {};
+      const windowStart = data.windowStart || now;
+      const timeElapsed = now - windowStart;
+
+      if (timeElapsed > windowMs) {
+        // Window expired: reset window
+        await docRef.set({
+          count: 1,
+          windowStart: now,
+          action,
+          identifier: sanitizedId,
+          lastUpdatedAt: now,
+        });
+        return {
+          allowed: true,
+          limit: maxRequests,
+          remaining: maxRequests - 1,
+          resetInSeconds: windowSeconds,
+        };
+      }
+
+      const currentCount = (data.count || 0) + 1;
+      const resetInSeconds = Math.max(1, Math.ceil((windowMs - timeElapsed) / 1000));
+
+      if (currentCount > maxRequests) {
+        return {
+          allowed: false,
+          limit: maxRequests,
+          remaining: 0,
+          resetInSeconds,
+        };
+      }
+
+      await docRef.update({
+        count: currentCount,
+        lastUpdatedAt: now,
+      });
+
+      return {
+        allowed: true,
+        limit: maxRequests,
+        remaining: Math.max(0, maxRequests - currentCount),
+        resetInSeconds,
+      };
+    }
+  } catch (fsErr) {
+    // Graceful fallback to memory store
+  }
+
+  // 3. Fallback: In-Memory Sliding Window
+  const record = memoryStore.get(key);
+  if (!record || now - record.windowStart > windowMs) {
+    memoryStore.set(key, { count: 1, windowStart: now });
+    return {
+      allowed: true,
+      limit: maxRequests,
+      remaining: maxRequests - 1,
+      resetInSeconds: windowSeconds,
+    };
+  }
+
+  const timeElapsed = now - record.windowStart;
+  const resetInSeconds = Math.max(1, Math.ceil((windowMs - timeElapsed) / 1000));
+
+  if (record.count >= maxRequests) {
+    return {
+      allowed: false,
+      limit: maxRequests,
+      remaining: 0,
+      resetInSeconds,
+    };
+  }
+
+  record.count += 1;
+  memoryStore.set(key, record);
+
+  return {
+    allowed: true,
+    limit: maxRequests,
+    remaining: Math.max(0, maxRequests - record.count),
+    resetInSeconds,
+  };
+}

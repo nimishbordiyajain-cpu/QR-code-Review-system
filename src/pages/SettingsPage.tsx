@@ -5,6 +5,8 @@ import { updateBusinessProfile } from '../services/businessService';
 import { DEMO_BUSINESS } from '../utils/demoData';
 import { GoogleReviewUrlInput } from '../components/GoogleReviewUrlInput';
 import { normalizeGoogleReviewUrl } from '../utils/googleReviewUrlHelper';
+import { auth } from '../lib/firebase';
+import { updatePassword, sendPasswordResetEmail } from 'firebase/auth';
 import {
   Store,
   MapPin,
@@ -13,6 +15,10 @@ import {
   AlertCircle,
   Save,
   User,
+  KeyRound,
+  Mail,
+  Shield,
+  Lock,
 } from 'lucide-react';
 
 const CATEGORIES: BusinessCategory[] = [
@@ -51,6 +57,79 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDemoMode = false }
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Account Security state
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [pwdSuccess, setPwdSuccess] = useState<string | null>(null);
+  const [pwdError, setPwdError] = useState<string | null>(null);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwdSuccess(null);
+    setPwdError(null);
+
+    if (isDemoMode) {
+      setPwdSuccess('Demo mode: Password update simulated.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPwdError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPwdError('Passwords do not match.');
+      return;
+    }
+
+    if (!auth.currentUser) {
+      setPwdError('No authenticated user session found.');
+      return;
+    }
+
+    setPwdLoading(true);
+    try {
+      await updatePassword(auth.currentUser, newPassword);
+      setPwdSuccess('Password updated successfully!');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      if (err?.code === 'auth/requires-recent-login') {
+        setPwdError('For security, updating your password requires a recent login. Please sign out and sign back in before changing your password, or use the reset email button below.');
+      } else {
+        setPwdError(err?.message || 'Failed to update password.');
+      }
+    } finally {
+      setPwdLoading(false);
+    }
+  };
+
+  const handleSendResetEmail = async () => {
+    setPwdSuccess(null);
+    setPwdError(null);
+    setResetEmailSent(false);
+
+    const userEmail = auth.currentUser?.email || business.email;
+    if (!userEmail) {
+      setPwdError('No email address associated with this account.');
+      return;
+    }
+
+    setPwdLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, userEmail);
+      setResetEmailSent(true);
+      setPwdSuccess(`Password reset email sent to ${userEmail}. Follow the link in your inbox to set a new password.`);
+    } catch (err: any) {
+      setPwdError(err?.message || 'Failed to send reset email.');
+    } finally {
+      setPwdLoading(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -252,13 +331,112 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDemoMode = false }
                 id="settings-save-btn"
                 type="submit"
                 disabled={saving}
-                className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center gap-1.5 disabled:opacity-50"
+                className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 <Save className="w-3.5 h-3.5" />
                 <span>{saving ? 'Saving...' : 'Save Settings'}</span>
               </button>
             </div>
           </form>
+        </div>
+
+        {/* Account Security & Password Management Card */}
+        <div className="mt-6 bg-white rounded-xl p-5 sm:p-7 border border-slate-200 shadow-xs">
+          <div className="flex items-center gap-2 mb-2">
+            <Shield className="w-4 h-4 text-indigo-600" />
+            <h2 className="text-sm font-bold text-slate-900">Account Security & Credentials</h2>
+          </div>
+          <p className="text-xs text-slate-500 mb-4">
+            Manage your account login credentials and reset password options.
+          </p>
+
+          {pwdSuccess && (
+            <div className="mb-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2 font-medium">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>{pwdSuccess}</span>
+            </div>
+          )}
+
+          {pwdError && (
+            <div className="mb-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2 font-medium">
+              <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+              <span>{pwdError}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+            {/* Form for direct password update */}
+            <form onSubmit={handleUpdatePassword} className="space-y-3">
+              <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5 text-slate-500" />
+                <span>Change Password</span>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                  New Password (min 6 characters)
+                </label>
+                <div className="relative">
+                  <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    id="settings-new-password-input"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                  Confirm New Password
+                </label>
+                <div className="relative">
+                  <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    id="settings-confirm-password-input"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+              <button
+                id="settings-update-pwd-btn"
+                type="submit"
+                disabled={pwdLoading || !newPassword || !confirmPassword}
+                className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-2xs transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>{pwdLoading ? 'Updating...' : 'Update Password'}</span>
+              </button>
+            </form>
+
+            {/* Password Reset Email Option */}
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 flex flex-col justify-between">
+              <div>
+                <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5 mb-1.5">
+                  <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Send Password Reset Email</span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
+                  Need to set or change your password via email? Click below to send a secure password reset link to <strong className="text-slate-700">{auth.currentUser?.email || business.email || 'your registered email'}</strong>.
+                </p>
+              </div>
+              <button
+                id="settings-send-reset-btn"
+                type="button"
+                onClick={handleSendResetEmail}
+                disabled={pwdLoading}
+                className="w-full py-2 rounded-lg bg-white hover:bg-slate-100 text-indigo-700 border border-indigo-200 font-bold text-xs shadow-2xs transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Mail className="w-3.5 h-3.5" />
+                <span>{resetEmailSent ? 'Send Another Reset Email' : 'Email Password Reset Link'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

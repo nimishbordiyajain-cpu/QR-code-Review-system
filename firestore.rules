@@ -2,7 +2,18 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper functions
+    /**
+     * ReviewFlow AI - Ownership-Based Security Rules (Master Gate Architecture)
+     * 
+     * Security Design:
+     * 1. Public Reads: Business profiles and QR codes are readable without auth to allow customers to view business info and scan QR codes.
+     * 2. Customer Submissions: Feedback and review click telemetry can be created by customers without login, strictly validated on write.
+     * 3. Ownership Scoping: Businesses, feedback management, QR code creation/deletion, and telemetry queries are strictly isolated to the verified business owner (ownerId == request.auth.uid).
+     * 4. Admin Role: Super-admin privileges are derived from Firebase custom claims (request.auth.token.admin == true) or the authorized admin list.
+     * 5. User Self-Escalation Prevention: User records cannot modify their own 'role' to 'admin'.
+     */
+    
+    // Core helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -11,11 +22,63 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
-    // User profile documents: strictly isolated to the user
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        (request.auth.token.email is string && (
+          request.auth.token.email == 'admin@authenticreviews.com' ||
+          request.auth.token.email == 'nimishbordiyajain@gmail.com'
+        ))
+      );
+    }
+    
+    function isBusinessOwner(bizId) {
+      return isAuthenticated() && (
+        isAdmin() ||
+        (bizId is string && 
+         exists(/databases/$(database)/documents/businesses/$(bizId)) && 
+         get(/databases/$(database)/documents/businesses/$(bizId)).data.ownerId == request.auth.uid)
+      );
+    }
+
+    function isBusinessActive(bizId) {
+      return isAdmin() || (
+        bizId is string &&
+        exists(/databases/$(database)/documents/businesses/$(bizId)) &&
+        get(/databases/$(database)/documents/businesses/$(bizId)).data.status == 'active'
+      );
+    }
+    
+    // Strict schema & field boundary validator for BusinessProfile
+    function isValidBusinessProfile(data) {
+      return data.keys().hasOnly([
+        'id', 'ownerId', 'name', 'ownerName', 'email', 'phone', 
+        'category', 'address', 'description', 'logoUrl', 
+        'googleReviewUrl', 'slug', 'status', 'dailyGenerationLimit',
+        'customCategories', 'createdAt', 'updatedAt'
+      ])
+      && data.ownerId is string && data.ownerId == request.auth.uid
+      && data.name is string && data.name.size() > 0 && data.name.size() <= 150
+      && data.slug is string && data.slug.size() > 0 && data.slug.size() <= 200
+      && data.googleReviewUrl is string && data.googleReviewUrl.size() <= 500
+      && data.category is string && data.category.size() <= 50
+      && (!('ownerName' in data) || (data.ownerName is string && data.ownerName.size() <= 150))
+      && (!('email' in data) || (data.email is string && data.email.size() <= 150))
+      && (!('phone' in data) || (data.phone is string && data.phone.size() <= 50))
+      && (!('address' in data) || (data.address is string && data.address.size() <= 500))
+      && (!('description' in data) || (data.description is string && data.description.size() <= 2000))
+      && (!('logoUrl' in data) || (data.logoUrl is string && data.logoUrl.size() <= 1000))
+      && (!('status' in data) || (data.status in ['active', 'disabled']))
+      && (!('dailyGenerationLimit' in data) || (data.dailyGenerationLimit is number && data.dailyGenerationLimit > 0 && data.dailyGenerationLimit <= 5000))
+      && (!('customCategories' in data) || (data.customCategories is list && data.customCategories.size() <= 30));
+    }
+    
+    // User profile documents: isolated to the user, role escalation prevented
     match /users/{userId} {
-      allow read: if isOwner(userId);
-      allow create, update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && (!('role' in request.resource.data) || request.resource.data.role == 'owner');
+      allow update: if (isOwner(userId) && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role)) || isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
     }
     
     // Business profile documents
@@ -23,28 +86,31 @@ service cloud.firestore {
       // Publicly readable for customer QR scan flow & business resolution
       allow read: if true;
       allow create: if isAuthenticated() 
-        && request.resource.data.ownerId == request.auth.uid
-        && request.resource.data.name is string
-        && request.resource.data.name.size() > 0
-        && request.resource.data.name.size() <= 150;
-      allow update: if isAuthenticated() 
-        && resource.data.ownerId == request.auth.uid
-        && request.resource.data.ownerId == request.auth.uid
-        && request.resource.data.name is string
-        && request.resource.data.name.size() <= 150;
-      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+        && isValidBusinessProfile(request.resource.data)
+        && request.resource.data.status == 'active';
+      allow update: if isAuthenticated() && (
+        isAdmin() || (
+          resource.data.ownerId == request.auth.uid 
+          && request.resource.data.ownerId == request.auth.uid
+          && isValidBusinessProfile(request.resource.data)
+        )
+      );
+      allow delete: if isAuthenticated() && (isAdmin() || resource.data.ownerId == request.auth.uid);
     }
     
-    // QR Code records: protects against malicious tampering of QR links
+    // QR Code records: scoped to active business owner, telemetry updates allowed for scans
     match /qrCodes/{qrId} {
       // Publicly readable so customers can resolve QR context
       allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.businessId is string;
-      // Allow authenticated owners full updates, OR allow customer scans to ONLY increment scan/feedback metrics
-      allow update: if isAuthenticated() || (
+      allow create: if isAuthenticated() 
+        && request.resource.data.businessId is string 
+        && isBusinessOwner(request.resource.data.businessId)
+        && isBusinessActive(request.resource.data.businessId);
+      // Allow authenticated active owners full updates, OR allow customer scans to ONLY increment scan/feedback metrics
+      allow update: if (isAuthenticated() && isBusinessOwner(resource.data.businessId) && isBusinessActive(resource.data.businessId)) || (
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scanCount', 'feedbackCount', 'lastScannedAt'])
       );
-      allow delete: if isAuthenticated();
+      allow delete: if isAuthenticated() && isBusinessOwner(resource.data.businessId) && isBusinessActive(resource.data.businessId);
     }
     
     // Customer Feedback records: customer submissions & secure owner queries
@@ -55,20 +121,29 @@ service cloud.firestore {
         && request.resource.data.rating is number 
         && request.resource.data.rating >= 1 
         && request.resource.data.rating <= 5;
-      // Authenticated business owners can read & manage feedback
-      allow read, update, delete: if isAuthenticated();
+      // Authenticated active business owner or admin can read, manage, or delete feedback
+      allow read, update, delete: if isAuthenticated() 
+        && isBusinessOwner(resource.data.businessId)
+        && isBusinessActive(resource.data.businessId);
     }
     
     // Google Review link click telemetry
     match /reviewClicks/{clickId} {
       allow create: if request.resource.data.businessId is string && request.resource.data.businessId.size() > 0;
-      allow read: if isAuthenticated();
+      allow read, update, delete: if isAuthenticated() 
+        && isBusinessOwner(resource.data.businessId)
+        && isBusinessActive(resource.data.businessId);
     }
     
-    // Daily usage tracking
+    // Daily usage tracking: managed strictly server-side by Admin SDK
     match /dailyUsage/{usageId} {
-      allow read, write: if true;
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    
+    // Rate limit persistent store: server-side only
+    match /rateLimits/{limitId} {
+      allow read, write: if false;
     }
   }
 }
-

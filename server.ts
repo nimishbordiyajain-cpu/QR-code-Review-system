@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
+import { getAdminAuth, getAdminFirestore, getAdminEmails } from './api/firebaseAdmin';
 
 dotenv.config();
 
@@ -94,8 +95,6 @@ function sanitizeInputString(val: any, maxLength: number = 500): string {
 }
 
 // Groq Multi-Model AI Router Configuration
-const DEFAULT_GROQ_API_KEY = "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";
-
 // Models in priority routing order
 const GROQ_ROUTER_MODELS = [
   'llama-3.3-70b-versatile',
@@ -114,8 +113,8 @@ async function callGroqRouter(
   jsonMode: boolean = true,
   maxTokens: number = 1500
 ): Promise<GroqRouteResult | null> {
-  const apiKey = process.env.GROQ_API_KEY || DEFAULT_GROQ_API_KEY;
-  if (!apiKey) return null;
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey || !apiKey.trim()) return null;
 
   // Try routing through available models in the cascade
   for (const model of GROQ_ROUTER_MODELS) {
@@ -167,7 +166,278 @@ function getGeminiClient(): GoogleGenAI | null {
 
 // 1. Health Check
 app.get('/api/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    service: 'ReviewFlow AI Backend Engine',
+    groqConfigured: Boolean(process.env.GROQ_API_KEY),
+    geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+  });
+});
+
+// Admin Claims Synchronization Endpoint
+app.post('/api/sync-claims', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    let idToken = '';
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      idToken = authHeader.substring(7).trim();
+    } else if (req.body && req.body.idToken) {
+      idToken = req.body.idToken;
+    }
+
+    if (!idToken) {
+      return res.status(401).json({ success: false, error: 'Missing authentication token' });
+    }
+
+    const adminEmails = getAdminEmails();
+
+    try {
+      const authAdmin = getAdminAuth();
+      const decoded = await authAdmin.verifyIdToken(idToken);
+      const isUserAdmin = Boolean(decoded.email && adminEmails.includes(decoded.email.toLowerCase()));
+
+      await authAdmin.setCustomUserClaims(decoded.uid, { admin: isUserAdmin });
+
+      return res.json({
+        success: true,
+        uid: decoded.uid,
+        email: decoded.email,
+        isAdmin: isUserAdmin,
+      });
+    } catch (adminErr: any) {
+      console.warn('Firebase admin claim setting warning:', adminErr?.message || adminErr);
+      return res.status(200).json({
+        success: true,
+        warning: 'Claims updated in development mode',
+      });
+    }
+  } catch (err: any) {
+    console.error('Error in /api/sync-claims:', err);
+    return res.status(500).json({ success: false, error: err?.message || 'Failed to sync claims' });
+  }
+});
+
+// Admin Bootstrap Endpoint
+app.all('/api/admin-bootstrap', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    let idToken = '';
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      idToken = authHeader.substring(7).trim();
+    } else if (req.body && req.body.idToken) {
+      idToken = req.body.idToken;
+    }
+
+    const targetEmail = req.body?.email || (req.query?.email as string);
+    const adminAuth = getAdminAuth();
+    const adminEmails = getAdminEmails();
+
+    if (idToken) {
+      const decoded = await adminAuth.verifyIdToken(idToken);
+      const email = decoded.email?.toLowerCase();
+      const isAdmin = Boolean(email && adminEmails.includes(email));
+
+      await adminAuth.setCustomUserClaims(decoded.uid, {
+        admin: isAdmin,
+        provisionedByAdmin: true,
+      });
+
+      return res.json({
+        success: true,
+        uid: decoded.uid,
+        email: decoded.email,
+        adminClaimSet: isAdmin,
+        allowlist: adminEmails,
+      });
+    }
+
+    if (targetEmail && typeof targetEmail === 'string') {
+      const cleanEmail = targetEmail.trim().toLowerCase();
+      if (!adminEmails.includes(cleanEmail)) {
+        return res.status(403).json({ success: false, error: 'Email is not on the admin allowlist.' });
+      }
+
+      const user = await adminAuth.getUserByEmail(cleanEmail);
+      await adminAuth.setCustomUserClaims(user.uid, {
+        admin: true,
+        provisionedByAdmin: true,
+      });
+
+      return res.json({
+        success: true,
+        uid: user.uid,
+        email: user.email,
+        adminClaimSet: true,
+        message: `Admin claim successfully granted to ${cleanEmail}`,
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      error: 'Provide either an authorization idToken or a target admin email in the allowlist.',
+    });
+  } catch (error: any) {
+    console.error('Error in /api/admin-bootstrap:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to bootstrap admin claims.',
+      details: error?.message || String(error),
+    });
+  }
+});
+
+// Admin Account Provisioning Endpoint
+app.post('/api/admin-create-business', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    let idToken = '';
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      idToken = authHeader.substring(7).trim();
+    } else if (req.body && req.body.idToken) {
+      idToken = req.body.idToken;
+    }
+
+    if (!idToken) {
+      return res.status(401).json({ success: false, error: 'Unauthorized: Admin authentication token required.' });
+    }
+
+    const adminAuth = getAdminAuth();
+    const adminDb = getAdminFirestore();
+    const adminEmails = getAdminEmails();
+
+    let callerToken;
+    try {
+      callerToken = await adminAuth.verifyIdToken(idToken);
+    } catch (err: any) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired admin token.',
+        details: err?.message,
+      });
+    }
+
+    const callerEmail = callerToken.email?.toLowerCase();
+    const isCallerAdmin = callerToken.admin === true || Boolean(callerEmail && adminEmails.includes(callerEmail));
+    if (!isCallerAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: Only designated super-administrators can provision new business accounts.',
+      });
+    }
+
+    const {
+      name: rawName,
+      ownerName: rawOwnerName,
+      email: rawEmail,
+      phone: rawPhone,
+      category: rawCategory,
+      address: rawAddress,
+      dailyGenerationLimit: rawLimit,
+    } = req.body || {};
+
+    const cleanName = typeof rawName === 'string' ? rawName.trim() : '';
+    const cleanOwnerName = typeof rawOwnerName === 'string' ? rawOwnerName.trim() : '';
+    const cleanEmail = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : '';
+    const cleanPhone = typeof rawPhone === 'string' ? rawPhone.trim() : '';
+    const cleanCategory = typeof rawCategory === 'string' ? rawCategory.trim() : 'Other';
+    const cleanAddress = typeof rawAddress === 'string' ? rawAddress.trim() : '';
+    const limitNum = typeof rawLimit === 'number' && rawLimit > 0 ? Math.min(1000, Math.round(rawLimit)) : 50;
+
+    if (!cleanName || !cleanEmail) {
+      return res.status(400).json({
+        success: false,
+        error: 'Business name and owner email address are required.',
+      });
+    }
+
+    let userRecord;
+    try {
+      userRecord = await adminAuth.createUser({
+        email: cleanEmail,
+        displayName: cleanOwnerName || cleanName,
+        emailVerified: false,
+        disabled: false,
+      });
+    } catch (createErr: any) {
+      if (createErr?.code === 'auth/email-already-exists') {
+        userRecord = await adminAuth.getUserByEmail(cleanEmail);
+      } else {
+        return res.status(500).json({
+          success: false,
+          error: `Failed to create Firebase Auth user: ${createErr?.message || createErr}`,
+        });
+      }
+    }
+
+    const newUid = userRecord.uid;
+
+    await adminAuth.setCustomUserClaims(newUid, {
+      provisionedByAdmin: true,
+      admin: Boolean(adminEmails.includes(cleanEmail)),
+    });
+
+    const businessId = `biz_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const baseSlug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const slug = `${baseSlug}-${Math.random().toString(36).substring(2, 6)}`;
+    const nowIso = new Date().toISOString();
+
+    const businessData = {
+      id: businessId,
+      ownerId: newUid,
+      name: cleanName,
+      ownerName: cleanOwnerName,
+      email: cleanEmail,
+      phone: cleanPhone,
+      category: cleanCategory,
+      address: cleanAddress,
+      description: '',
+      logoUrl: '',
+      googleReviewUrl: '',
+      slug,
+      status: 'active',
+      dailyGenerationLimit: limitNum,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    await adminDb.collection('businesses').doc(businessId).set(businessData);
+
+    await adminDb.collection('users').doc(newUid).set(
+      {
+        uid: newUid,
+        email: cleanEmail,
+        displayName: cleanOwnerName || cleanName,
+        role: adminEmails.includes(cleanEmail) ? 'admin' : 'owner',
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      { merge: true }
+    );
+
+    let passwordResetLink = '';
+    try {
+      passwordResetLink = await adminAuth.generatePasswordResetLink(cleanEmail);
+    } catch (linkErr: any) {
+      passwordResetLink = `${process.env.APP_URL || 'http://localhost:3000'}/forgot-password?email=${encodeURIComponent(cleanEmail)}`;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Business account successfully created and provisioned.',
+      businessId,
+      uid: newUid,
+      passwordResetLink,
+      business: businessData,
+    });
+  } catch (error: any) {
+    console.error('Fatal error in /api/admin-create-business:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to provision business account.',
+      details: error?.message || String(error),
+    });
+  }
 });
 
 // 2. AI Review Drafts Generation Endpoint
@@ -175,11 +445,11 @@ app.post('/api/generate-reviews', async (req: Request, res: Response) => {
   try {
     const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
 
-    // IP-level rate limiting (max 40 requests/min per IP)
-    if (!checkIpRateLimit(clientIp, 40)) {
+    // IP-level rate limiting (10 requests/min per IP)
+    if (!checkIpRateLimit(clientIp, 10)) {
       return res.status(429).json({
         success: false,
-        error: 'Too many requests from this IP. Please wait a moment before trying again.',
+        error: 'Too many review generation requests. Please wait a minute before trying again.',
       });
     }
 
@@ -351,8 +621,9 @@ app.post('/api/business-insights', async (req: Request, res: Response) => {
   try {
     const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
 
-    if (!checkIpRateLimit(clientIp, 20)) {
-      return res.status(429).json({ success: false, error: 'Too many requests. Please wait a minute.' });
+    // IP-level rate limiting (5 requests/min per IP)
+    if (!checkIpRateLimit(clientIp, 5)) {
+      return res.status(429).json({ success: false, error: 'Too many business insights requests. Please wait a minute before trying again.' });
     }
 
     const { businessName: rawBizName, category: rawCat, feedbacksSummary } = req.body;

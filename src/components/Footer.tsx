@@ -46,11 +46,6 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onStartDemo }) => {
                 </button>
               </li>
               <li>
-                <button onClick={() => onNavigate('register')} className="hover:text-white transition-colors cursor-pointer">
-                  Get Started Free
-                </button>
-              </li>
-              <li>
                 <button onClick={() => onNavigate('login')} className="hover:text-white transition-colors cursor-pointer">
                   Business Sign In
                 </button>

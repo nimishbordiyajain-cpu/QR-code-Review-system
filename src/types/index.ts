@@ -41,6 +41,7 @@ export interface BusinessProfile {
   googleReviewUrl: string;
   slug: string;
   status: 'active' | 'disabled';
+  dailyGenerationLimit?: number;
   customCategories?: string[];
   createdAt: string;
   updatedAt?: string;

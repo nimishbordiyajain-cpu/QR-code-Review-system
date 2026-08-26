@@ -10,7 +10,6 @@ import {
   Eye,
   EyeOff,
   KeyRound,
-  UserPlus,
 } from 'lucide-react';
 
 interface LoginPageProps {
@@ -33,7 +32,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onOpenDemo, on
   const [errorInfo, setErrorInfo] = useState<{
     code?: string;
     message: string;
-    action?: 'reset' | 'register' | 'both';
+    action?: 'reset';
   } | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -68,8 +67,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onOpenDemo, on
       ) {
         setErrorInfo({
           code: 'invalid-credential',
-          message: 'Invalid email or password. Please verify your email and password, or reset your password if you forgot it.',
-          action: 'both',
+          message: 'Invalid email or password. Please verify your credentials, or reset your password below.',
+          action: 'reset',
         });
       } else if (code === 'auth/too-many-requests' || errMsg.includes('auth/too-many-requests')) {
         setErrorInfo({
@@ -107,15 +106,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onOpenDemo, on
     onNavigate('forgot-password');
   };
 
-  const handleGoToRegister = () => {
-    try {
-      if (email.trim()) {
-        sessionStorage.setItem('auth_last_email', email.trim());
-      }
-    } catch {}
-    onNavigate('register');
-  };
-
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4 bg-slate-50">
       <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-xl border border-slate-200/90 space-y-6">
@@ -139,28 +129,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onOpenDemo, on
               <span className="font-medium leading-relaxed">{errorInfo.message}</span>
             </div>
 
-            {errorInfo.action && (
-              <div className="pt-1.5 border-t border-rose-200/80 flex items-center gap-2 flex-wrap">
-                {(errorInfo.action === 'reset' || errorInfo.action === 'both') && (
-                  <button
-                    type="button"
-                    onClick={handleGoToForgotPassword}
-                    className="px-2.5 py-1 rounded-lg bg-white hover:bg-rose-100/70 text-rose-900 border border-rose-300 font-bold text-[11px] flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
-                  >
-                    <KeyRound className="w-3 h-3 text-rose-600" />
-                    <span>Reset Password</span>
-                  </button>
-                )}
-                {(errorInfo.action === 'register' || errorInfo.action === 'both') && (
-                  <button
-                    type="button"
-                    onClick={handleGoToRegister}
-                    className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
-                  >
-                    <UserPlus className="w-3 h-3" />
-                    <span>Create New Account</span>
-                  </button>
-                )}
+            {errorInfo.action === 'reset' && (
+              <div className="pt-1.5 border-t border-rose-200/80 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleGoToForgotPassword}
+                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-rose-100/70 text-rose-900 border border-rose-300 font-bold text-[11px] flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
+                >
+                  <KeyRound className="w-3 h-3 text-rose-600" />
+                  <span>Reset Password</span>
+                </button>
               </div>
             )}
           </div>
@@ -193,9 +171,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onOpenDemo, on
               <button
                 type="button"
                 onClick={handleGoToForgotPassword}
-                className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold cursor-pointer"
+                className="text-xs text-indigo-600 hover:text-indigo-700 font-medium cursor-pointer"
               >
-                Forgot Password?
+                Forgot password?
               </button>
             </div>
             <div className="relative">
@@ -238,14 +216,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onOpenDemo, on
         </form>
 
         <div className="pt-2 text-center space-y-4">
-          <p className="text-xs text-slate-600">
-            Don't have an account yet?{' '}
-            <button
-              onClick={handleGoToRegister}
-              className="text-indigo-600 hover:text-indigo-700 font-bold cursor-pointer"
-            >
-              Create Free Account
-            </button>
+          <p className="text-[11px] text-slate-500 leading-relaxed">
+            Accounts are provisioned by platform administrators. Contact your administrator if you need account access.
           </p>
 
           <div className="relative">
