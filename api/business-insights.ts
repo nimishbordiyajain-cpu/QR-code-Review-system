@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import Groq from 'groq-sdk';
 import { GoogleGenAI } from '@google/genai';
 import { checkRateLimit, getClientIp } from './_lib/rateLimiter';
 import { getAdminFirestore } from './_lib/firebaseAdmin';
@@ -141,51 +142,43 @@ Provide an objective, constructive business summary in JSON format with:
 
     const groqKey = process.env.GROQ_API_KEY;
 
-    // 1. Try Groq Multi-Model Router First
+    // 1. Primary AI Engine: Groq High-Speed LPU Multi-Model Router
     if (groqKey && groqKey.trim()) {
+      const groq = new Groq({ apiKey: groqKey.trim() });
       const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'];
       for (const model of GROQ_MODELS) {
         try {
-          const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${groqKey.trim()}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model,
-              messages: [
-                {
-                  role: 'system',
-                  content: 'You are a customer experience consultant analyzing feedback. Return a valid JSON object with strengths, areasForImprovement, customerSentimentSummary, actionableRecommendations.',
-                },
-                {
-                  role: 'user',
-                  content: prompt,
-                },
-              ],
-              response_format: { type: 'json_object' },
-              temperature: 0.2,
-              max_tokens: 1200,
-            }),
+          const completion = await groq.chat.completions.create({
+            model,
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a customer experience consultant analyzing feedback. Return a valid JSON object with strengths, areasForImprovement, customerSentimentSummary, actionableRecommendations.',
+              },
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.2,
+            max_tokens: 1200,
           });
 
-          if (groqRes.ok) {
-            const data: any = await groqRes.json();
-            const parsed = JSON.parse(data?.choices?.[0]?.message?.content || '{}');
-            if (parsed && typeof parsed === 'object') {
-              await recordUsageIncrement();
-              return res.status(200).json({
-                success: true,
-                insights: {
-                  ...parsed,
-                  generatedAt: new Date().toISOString(),
-                  feedbackCountAnalyzed: feedbacksSummary.total,
-                  provider: 'groq-router',
-                  model,
-                },
-              });
-            }
+          const content = completion.choices?.[0]?.message?.content || '{}';
+          const parsed = JSON.parse(content);
+          if (parsed && typeof parsed === 'object') {
+            await recordUsageIncrement();
+            return res.status(200).json({
+              success: true,
+              insights: {
+                ...parsed,
+                generatedAt: new Date().toISOString(),
+                feedbackCountAnalyzed: feedbacksSummary.total,
+                provider: 'groq-router',
+                model,
+              },
+            });
           }
         } catch (groqErr: any) {
           console.warn(`Groq Router insight error on ${model}:`, groqErr?.message || groqErr);

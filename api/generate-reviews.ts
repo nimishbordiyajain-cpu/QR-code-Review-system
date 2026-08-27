@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import Groq from 'groq-sdk';
 import { GoogleGenAI } from '@google/genai';
 import { checkRateLimit, getClientIp } from './_lib/rateLimiter';
 import { getAdminFirestore } from './_lib/firebaseAdmin';
@@ -258,23 +259,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const groqKey = process.env.GROQ_API_KEY;
 
-    // 1. Try Groq Multi-Model Router First (Llama 3.3 -> Llama 3.1 -> Mixtral -> Gemma)
+    // 1. Primary AI Engine: Groq High-Speed LPU Multi-Model Router
     if (groqKey && groqKey.trim()) {
+      const groq = new Groq({ apiKey: groqKey.trim() });
       const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768', 'gemma2-9b-it'];
       for (const model of GROQ_MODELS) {
         try {
-          const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${groqKey.trim()}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model,
-              messages: [
-                {
-                  role: 'system',
-                  content: `You are a helpful writing assistant assisting a customer in phrasing their authentic review for a business.
+          const completion = await groq.chat.completions.create({
+            model,
+            messages: [
+              {
+                role: 'system',
+                content: `You are a helpful writing assistant assisting a customer in phrasing their authentic review for a business.
 Generate five natural review drafts based STRICTLY and ONLY on the customer's provided rating, feedback highlights, and comments.
 
 Strict Safety & Authenticity Guardrails:
@@ -285,36 +281,30 @@ Strict Safety & Authenticity Guardrails:
 - If customer rating is 4 or 5 stars, reflect their genuine appreciation.
 
 Return valid JSON with an array of 5 review variation objects inside a "drafts" key, each having: id (string "1"-"5"), style, description, content.`
-                },
-                {
-                  role: 'user',
-                  content: `Business: ${businessName}\nCategory: ${businessCategory || 'Business'}\nStar Rating: ${rating}/5\nExperience Highlights: ${categoriesText}\nCustomer Remarks: "${commentText}"\nCustomer Name: ${nameText}`
-                }
-              ],
-              response_format: { type: 'json_object' },
-              temperature: 0.3,
-              max_tokens: 1500,
-            }),
+              },
+              {
+                role: 'user',
+                content: `Business: ${businessName}\nCategory: ${businessCategory || 'Business'}\nStar Rating: ${rating}/5\nExperience Highlights: ${categoriesText}\nCustomer Remarks: "${commentText}"\nCustomer Name: ${nameText}`
+              }
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.3,
+            max_tokens: 1500,
           });
 
-          if (groqRes.ok) {
-            const groqData: any = await groqRes.json();
-            const content = groqData?.choices?.[0]?.message?.content || '{}';
-            let parsed: any = JSON.parse(content);
-            if (parsed && !Array.isArray(parsed)) {
-              parsed = parsed.drafts || parsed.reviews || Object.values(parsed);
-            }
-            if (Array.isArray(parsed) && parsed.length >= 3) {
-              await recordUsageIncrement();
-              return res.status(200).json({
-                success: true,
-                drafts: parsed.slice(0, 5),
-                provider: 'groq-router',
-                model,
-              });
-            }
-          } else {
-            console.warn(`Groq Router ${model} failed (${groqRes.status}), routing to next model...`);
+          const content = completion.choices?.[0]?.message?.content || '{}';
+          let parsed: any = JSON.parse(content);
+          if (parsed && !Array.isArray(parsed)) {
+            parsed = parsed.drafts || parsed.reviews || Object.values(parsed);
+          }
+          if (Array.isArray(parsed) && parsed.length >= 3) {
+            await recordUsageIncrement();
+            return res.status(200).json({
+              success: true,
+              drafts: parsed.slice(0, 5),
+              provider: 'groq-router',
+              model,
+            });
           }
         } catch (groqErr: any) {
           console.warn(`Groq Router model error on ${model}:`, groqErr?.message || groqErr);

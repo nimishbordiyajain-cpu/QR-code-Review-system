@@ -40,7 +40,7 @@ export const PrivacyPolicyPage: React.FC<LegalPageProps> = ({ onNavigate }) => {
 
           <h3 className="text-sm font-bold text-slate-900">2. How We Use Feedback Data</h3>
           <p>
-            • We process customer feedback to generate 5 optional AI review drafting suggestions using Google Gemini.
+            • We process customer feedback to generate 5 optional AI review drafting suggestions using ultra-fast Groq LPU inference.
           </p>
           <p>
             • We aggregate feedback statistics to provide business owners with real-time operational insights on customer satisfaction.

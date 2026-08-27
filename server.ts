@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
+import Groq from 'groq-sdk';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
 import { getAdminAuth, getAdminFirestore, getAdminEmails } from './api/_lib/firebaseAdmin';
@@ -94,7 +95,7 @@ function sanitizeInputString(val: any, maxLength: number = 500): string {
 }
 
 // Groq Multi-Model AI Router Configuration
-// Models in priority routing order
+// Powered by Groq's high-speed LPU inference engine
 const GROQ_ROUTER_MODELS = [
   'llama-3.3-70b-versatile',
   'llama-3.1-8b-instant',
@@ -107,44 +108,42 @@ interface GroqRouteResult {
   modelUsed: string;
 }
 
+let groqClient: Groq | null = null;
+function getGroqClient(): Groq | null {
+  if (!groqClient) {
+    const key = process.env.GROQ_API_KEY;
+    if (key && key.trim()) {
+      groqClient = new Groq({ apiKey: key.trim() });
+    }
+  }
+  return groqClient;
+}
+
 async function callGroqRouter(
-  messages: Array<{ role: string; content: string }>,
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
   jsonMode: boolean = true,
   maxTokens: number = 1500
 ): Promise<GroqRouteResult | null> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey || !apiKey.trim()) return null;
+  const groq = getGroqClient();
+  if (!groq) return null;
 
-  // Try routing through available models in the cascade
+  // Try routing through high-performance Groq models in the cascade
   for (const model of GROQ_ROUTER_MODELS) {
     try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey.trim()}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          response_format: jsonMode ? { type: 'json_object' } : undefined,
-          temperature: 0.3,
-          max_tokens: maxTokens,
-        }),
+      const completion = await groq.chat.completions.create({
+        model,
+        messages,
+        response_format: jsonMode ? { type: 'json_object' } : undefined,
+        temperature: 0.3,
+        max_tokens: maxTokens,
       });
 
-      if (response.ok) {
-        const data: any = await response.json();
-        const content = data?.choices?.[0]?.message?.content;
-        if (content) {
-          return { content, modelUsed: model };
-        }
-      } else {
-        const errText = await response.text();
-        console.warn(`Groq Router failed for model ${model} (${response.status}): ${errText.slice(0, 100)}... Routing to next model.`);
+      const content = completion.choices?.[0]?.message?.content;
+      if (content) {
+        return { content, modelUsed: model };
       }
     } catch (err: any) {
-      console.warn(`Groq Router network error with ${model}:`, err?.message || err);
+      console.warn(`Groq Router model ${model} error:`, err?.message || err);
     }
   }
 
