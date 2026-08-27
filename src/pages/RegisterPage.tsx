@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
-  Sparkles,
   ArrowRight,
   Lock,
   Mail,
@@ -14,6 +13,7 @@ import {
   LogIn,
   KeyRound,
 } from 'lucide-react';
+import { BrandLogo } from '../components/BrandLogo';
 
 interface RegisterPageProps {
   onNavigate: (view: string) => void;
@@ -80,7 +80,6 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
       } catch {}
 
       await register(cleanEmail, password, cleanName);
-      // Direct newly registered user to Onboarding to setup business profile
       onNavigate('onboarding');
     } catch (err: any) {
       console.error('Registration error:', err);
@@ -138,22 +137,22 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4 bg-slate-50">
-      <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-xl border border-slate-200/90 space-y-6">
+      <div className="max-w-md w-full bg-white rounded-2xl p-8 shadow-xl border border-slate-200 space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-center mx-auto text-indigo-600">
-            <Sparkles className="w-6 h-6" />
+        <div className="text-center space-y-3">
+          <div className="flex justify-center">
+            <BrandLogo size="lg" showText={true} />
           </div>
-          <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-            Create Free Business Account
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight font-display">
+            Create Business Workspace
           </h2>
           <p className="text-xs text-slate-500">
-            Get your custom QR codes and AI review assistant in minutes.
+            Deploy precision storefront QR touchpoints and review workflows.
           </p>
         </div>
 
         {errorInfo && (
-          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-2.5 animate-in fade-in">
+          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-2.5">
             <div className="flex items-start gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
               <span className="font-medium leading-relaxed">{errorInfo.message}</span>
@@ -165,7 +164,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
                   <button
                     type="button"
                     onClick={handleGoToLogin}
-                    className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-[11px] flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
                   >
                     <LogIn className="w-3 h-3" />
                     <span>Sign In to Existing Account</span>
@@ -175,7 +174,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
                   <button
                     type="button"
                     onClick={handleGoToForgotPassword}
-                    className="px-2.5 py-1 rounded-lg bg-white hover:bg-rose-100/70 text-rose-900 border border-rose-300 font-bold text-[11px] flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg bg-white hover:bg-rose-100 text-rose-900 border border-rose-300 font-semibold text-[11px] flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
                   >
                     <KeyRound className="w-3 h-3 text-rose-600" />
                     <span>Forgot Password?</span>
@@ -188,8 +187,8 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Your Full Name / Owner Name
+            <label className="block text-xs font-mono font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Full Name / Operator Name
             </label>
             <div className="relative">
               <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
@@ -200,14 +199,14 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Jane Doe"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Business Email Address
+            <label className="block text-xs font-mono font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Work Email Address
             </label>
             <div className="relative">
               <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
@@ -217,14 +216,14 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="owner@mybusiness.com"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                placeholder="operator@company.com"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-mono font-bold text-slate-700 uppercase tracking-wider mb-1.5">
               Password (6+ characters)
             </label>
             <div className="relative">
@@ -237,7 +236,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-900 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               />
               <button
                 type="button"
@@ -251,7 +250,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-mono font-bold text-slate-700 uppercase tracking-wider mb-1.5">
               Confirm Password
             </label>
             <div className="relative">
@@ -262,34 +261,34 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
-                className={`w-full bg-slate-50 border rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 transition-all ${
+                className={`w-full bg-slate-50 border rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:outline-hidden focus:ring-2 transition-all ${
                   confirmPassword && confirmPassword !== password
                     ? 'border-rose-300 focus:ring-rose-500'
-                    : 'border-slate-200 focus:ring-indigo-500'
+                    : 'border-slate-200 focus:ring-blue-500'
                 }`}
               />
             </div>
             {confirmPassword && confirmPassword !== password && (
-              <p className="text-[11px] text-rose-600 mt-1">Passwords do not match</p>
+              <p className="text-[11px] text-rose-600 mt-1 font-mono">Passwords do not match</p>
             )}
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-1">
+          <div className="flex items-center gap-2 text-xs text-slate-500 pt-1">
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Free starter tier includes 50 AI review drafts per day. No credit card required.</span>
+            <span>Compliant with Google Review and FTC anti-gating policies.</span>
           </div>
 
           <button
             id="register-submit-btn"
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+            className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             {loading ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
               <>
-                <span>Continue to Business Setup</span>
+                <span>Configure Business Terminal</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
@@ -301,7 +300,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
             Already have an account?{' '}
             <button
               onClick={handleGoToLogin}
-              className="text-indigo-600 hover:text-indigo-700 font-bold cursor-pointer"
+              className="text-blue-600 hover:text-blue-700 font-semibold cursor-pointer"
             >
               Sign In
             </button>
@@ -312,17 +311,17 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onOpenDe
               <div className="w-full border-t border-slate-200"></div>
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-slate-400 font-bold text-[10px]">Or</span>
+              <span className="bg-white px-2 text-slate-400 font-mono font-bold text-[10px]">Or</span>
             </div>
           </div>
 
           <button
             type="button"
             onClick={handleDemoClick}
-            className="w-full py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 hover:bg-amber-100 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            className="w-full py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 hover:bg-slate-100 font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
-            <PlayCircle className="w-4 h-4 text-amber-600" />
-            <span>Explore Demo Café First</span>
+            <PlayCircle className="w-4 h-4 text-blue-600" />
+            <span>Explore Sandbox Workspace</span>
           </button>
         </div>
       </div>

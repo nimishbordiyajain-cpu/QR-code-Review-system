@@ -1,5 +1,6 @@
 import React from 'react';
-import { Sparkles, ShieldCheck, CheckCircle2, Lock, ArrowUpRight } from 'lucide-react';
+import { BrandLogo } from './BrandLogo';
+import { ShieldCheck, CheckCircle2, Lock, ArrowUpRight, Server, Check } from 'lucide-react';
 
 interface FooterProps {
   onNavigate: (view: string) => void;
@@ -8,69 +9,68 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ onNavigate, onStartDemo }) => {
   return (
-    <footer className="bg-stone-950 text-stone-400 text-xs border-t border-stone-800 selection:bg-amber-700 selection:text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-10">
+    <footer className="bg-slate-950 text-slate-400 text-xs border-t border-slate-800 selection:bg-blue-600 selection:text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-10 mb-12">
           {/* Col 1 & 2: Brand & Core Mission */}
-          <div className="md:col-span-2 space-y-3.5 pr-4">
-            <div className="flex items-center gap-2 text-white font-extrabold text-base tracking-tight">
-              <div className="w-7 h-7 rounded-lg bg-stone-900 border border-stone-700 flex items-center justify-center text-amber-400 shadow-xs">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <span className="font-display">
-                ReviewFlow<span className="text-amber-500">AI</span>
-              </span>
-            </div>
-            <p className="text-xs text-stone-400 leading-relaxed max-w-sm">
-              The ethical QR review and customer feedback infrastructure for independent cafés, restaurants, salons, and boutique hospitality. Compliant with Google Review & FTC guidelines.
+          <div className="md:col-span-2 space-y-4 pr-4">
+            <button
+              onClick={() => onNavigate('landing')}
+              className="flex items-center text-left group focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg cursor-pointer"
+              aria-label="ReviewFlow Home"
+            >
+              <BrandLogo size="md" theme="dark" subtitle="Customer Intelligence Infrastructure" />
+            </button>
+            <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
+              Enterprise QR and tap-to-review infrastructure for independent hospitality, multi-location restaurants, salons, and medical clinics. Fully compliant with Google Review Guidelines and FTC endorsements.
             </p>
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-stone-900 text-[11px] text-emerald-400 font-semibold border border-stone-800">
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900 text-[11px] text-emerald-400 font-medium border border-slate-800">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>100% Anti-Gating Compliant</span>
+                <span>Anti-Gating Architecture</span>
               </div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-stone-900 text-[11px] text-stone-300 font-semibold border border-stone-800">
-                <Lock className="w-3.5 h-3.5 text-amber-500" />
-                <span>Privacy-First Architecture</span>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900 text-[11px] text-slate-300 font-medium border border-slate-800">
+                <Lock className="w-3.5 h-3.5 text-blue-400" />
+                <span>Zero Data Brokering</span>
               </div>
             </div>
           </div>
 
           {/* Col 3: Product */}
           <div>
-            <h4 className="text-[11px] font-bold text-stone-200 uppercase tracking-wider mb-3">Product</h4>
-            <ul className="space-y-2 text-xs">
+            <h4 className="text-[11px] font-mono font-bold text-slate-200 uppercase tracking-wider mb-3.5">Platform</h4>
+            <ul className="space-y-2.5 text-xs">
               <li>
                 <button
                   onClick={() => onNavigate('landing')}
-                  className="hover:text-stone-100 transition-colors cursor-pointer text-stone-400"
+                  className="hover:text-white transition-colors cursor-pointer text-slate-400"
                 >
-                  Platform Overview
+                  System Overview
                 </button>
               </li>
               <li>
                 <button
                   onClick={() => (onStartDemo ? onStartDemo() : onNavigate('demo'))}
-                  className="hover:text-amber-300 transition-colors text-amber-400 font-bold cursor-pointer inline-flex items-center gap-1"
+                  className="hover:text-blue-300 transition-colors text-blue-400 font-medium cursor-pointer inline-flex items-center gap-1"
                 >
-                  <span>Interactive Demo</span>
+                  <span>Interactive Simulator</span>
                   <ArrowUpRight className="w-3 h-3" />
                 </button>
               </li>
               <li>
                 <button
                   onClick={() => onNavigate('login')}
-                  className="hover:text-stone-100 transition-colors cursor-pointer text-stone-400"
+                  className="hover:text-white transition-colors cursor-pointer text-slate-400"
                 >
-                  Business Portal
+                  Operator Console
                 </button>
               </li>
               <li>
                 <button
                   onClick={() => onNavigate('admin')}
-                  className="hover:text-amber-300 text-stone-400 transition-colors cursor-pointer text-xs"
+                  className="hover:text-blue-300 text-slate-400 transition-colors cursor-pointer text-xs"
                 >
-                  System Admin
+                  Admin Telemetry
                 </button>
               </li>
             </ul>
@@ -78,35 +78,35 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onStartDemo }) => {
 
           {/* Col 4: Review Standards */}
           <div>
-            <h4 className="text-[11px] font-bold text-stone-200 uppercase tracking-wider mb-3">Ethics & Standards</h4>
-            <ul className="space-y-2 text-xs text-stone-400">
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span>No Review Filtering</span>
+            <h4 className="text-[11px] font-mono font-bold text-slate-200 uppercase tracking-wider mb-3.5">Compliance & Policy</h4>
+            <ul className="space-y-2.5 text-xs text-slate-400">
+              <li className="flex items-center gap-2">
+                <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>Zero Review Gating</span>
               </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span>No Fabricated Reviews</span>
+              <li className="flex items-center gap-2">
+                <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>User-Controlled Submissions</span>
               </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span>Customer-Controlled Submission</span>
+              <li className="flex items-center gap-2">
+                <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>No Incentivized Ratings</span>
               </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span>Private Operational Notes</span>
+              <li className="flex items-center gap-2">
+                <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>Encrypted Private Inboxes</span>
               </li>
             </ul>
           </div>
 
           {/* Col 5: Legal & System */}
           <div>
-            <h4 className="text-[11px] font-bold text-stone-200 uppercase tracking-wider mb-3">Legal & Security</h4>
-            <ul className="space-y-2 text-xs">
+            <h4 className="text-[11px] font-mono font-bold text-slate-200 uppercase tracking-wider mb-3.5">Legal & Security</h4>
+            <ul className="space-y-2.5 text-xs">
               <li>
                 <button
                   onClick={() => onNavigate('privacy')}
-                  className="hover:text-stone-100 transition-colors cursor-pointer text-stone-400"
+                  className="hover:text-white transition-colors cursor-pointer text-slate-400"
                 >
                   Privacy Policy
                 </button>
@@ -114,25 +114,28 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onStartDemo }) => {
               <li>
                 <button
                   onClick={() => onNavigate('terms')}
-                  className="hover:text-stone-100 transition-colors cursor-pointer text-stone-400"
+                  className="hover:text-white transition-colors cursor-pointer text-slate-400"
                 >
                   Terms of Service
                 </button>
               </li>
               <li>
-                <span className="text-stone-500">Tier: Professional Storefront</span>
+                <span className="text-slate-500 font-mono text-[11px]">SLA: 99.98% Available</span>
               </li>
             </ul>
           </div>
         </div>
 
         {/* Bottom Sub-Bar */}
-        <div className="pt-6 border-t border-stone-900 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-stone-500">
-          <p>© {new Date().getFullYear()} ReviewFlow AI. Engineered for authentic customer feedback and ethical review growth.</p>
-          <div className="flex items-center gap-4 text-stone-400 font-mono text-[11px]">
-            <span>Status: Operational</span>
+        <div className="pt-8 border-t border-slate-900 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
+          <p>© {new Date().getFullYear()} ReviewFlow Technologies Inc. All rights reserved.</p>
+          <div className="flex items-center gap-4 text-slate-400 font-mono text-[11px]">
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Systems Operational
+            </span>
             <span>•</span>
-            <span>Compliance: Google ToS Verified</span>
+            <span>Google Review Policy Compliant</span>
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { BrandLogo } from './BrandLogo';
 import {
-  Sparkles,
   QrCode,
   LayoutDashboard,
   MessageSquare,
@@ -12,8 +12,8 @@ import {
   X,
   PlayCircle,
   ChevronRight,
-  Store,
   ArrowRight,
+  Sparkles,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -32,14 +32,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleDemoMode,
   onStartDemo,
 }) => {
-  const { currentUser, userProfile, currentBusiness, logout, isDemoMode: authIsDemoMode, toggleDemoMode, isAdmin } = useAuth();
+  const { currentUser, currentBusiness, logout, isDemoMode: authIsDemoMode, toggleDemoMode, isAdmin } = useAuth();
   const isDemoMode = propIsDemoMode !== undefined ? propIsDemoMode : authIsDemoMode;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      setScrolled(window.scrollY > 15);
     };
     handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -78,10 +78,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           onNavigate(view);
           setMobileMenuOpen(false);
         }}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500 cursor-pointer ${
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer ${
           isActive
-            ? 'bg-amber-700 text-white shadow-xs'
-            : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+            ? 'bg-slate-900 text-white shadow-xs'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
         }`}
       >
         {icon}
@@ -94,91 +94,82 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header
       className={`sticky top-0 z-40 transition-all duration-200 ${
         scrolled
-          ? 'bg-white/95 backdrop-blur-md border-b border-stone-200/90 shadow-xs'
-          : 'bg-white border-b border-stone-200/80'
+          ? 'bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-xs'
+          : 'bg-white border-b border-slate-200/80'
       }`}
     >
       {/* Demo Mode Notice when active */}
       {isDemoMode && (
-        <div className="bg-amber-600 text-white px-4 py-1 text-[11px] font-bold text-center flex items-center justify-center gap-2 border-b border-amber-700 shadow-2xs">
-          <span className="uppercase tracking-wider">Demo Mode Active</span>
-          <span className="font-medium text-amber-100">• Testing sample Artisan Roast & Bakery feedback flow</span>
+        <div className="bg-slate-900 text-white px-4 py-1 text-[11px] font-semibold text-center flex items-center justify-center gap-2 border-b border-slate-800 shadow-2xs">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span className="uppercase tracking-wider font-mono text-[10px] text-slate-300">Sandbox Preview Active</span>
+          <span className="text-slate-400 font-normal">• Artisan Roast & Bakery live simulation</span>
         </div>
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className={`flex items-center justify-between transition-all duration-200 ${scrolled ? 'h-13' : 'h-15'}`}>
-          {/* Logo */}
-          <div className="flex items-center gap-5">
+        <div className={`flex items-center justify-between transition-all duration-200 ${scrolled ? 'h-14' : 'h-16'}`}>
+          {/* Brand Logo */}
+          <div className="flex items-center gap-6">
             <button
               id="brand-logo-btn"
               onClick={() => onNavigate('landing')}
-              className="flex items-center gap-2.5 text-left group focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500 rounded-lg p-1"
+              className="flex items-center text-left group focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg p-1"
             >
-              <div className="w-8 h-8 rounded-lg bg-stone-900 flex items-center justify-center text-amber-400 shadow-xs group-hover:bg-amber-700 group-hover:text-white transition-colors">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="font-display font-extrabold text-base text-stone-900 tracking-tight flex items-center gap-1">
-                  ReviewFlow<span className="text-amber-700 font-black">AI</span>
-                </span>
-                <span className="block text-[9px] text-stone-600 font-bold -mt-1 tracking-wider uppercase">
-                  Storefront Reviews
-                </span>
-              </div>
+              <BrandLogo size="md" subtitle="Storefront Intelligence" />
             </button>
 
             {/* Desktop Navigation for Authenticated / Demo */}
             {(currentUser || isDemoMode) && (
               <nav className="hidden md:flex items-center gap-1 ml-2">
                 {navItem('dashboard', 'Dashboard', <LayoutDashboard className="w-3.5 h-3.5" />)}
-                {navItem('qr', 'QR Codes', <QrCode className="w-3.5 h-3.5" />)}
+                {navItem('qr', 'QR Hardware', <QrCode className="w-3.5 h-3.5" />)}
                 {navItem('feedback', 'Customer Feedback', <MessageSquare className="w-3.5 h-3.5" />)}
                 {navItem('settings', 'Settings', <Settings className="w-3.5 h-3.5" />)}
                 {isAdmin &&
-                  navItem('admin', 'Admin Panel', <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />)}
+                  navItem('admin', 'Admin Console', <ShieldAlert className="w-3.5 h-3.5 text-blue-600" />)}
               </nav>
             )}
           </div>
 
           {/* Right Action Menu */}
-          <div className="hidden md:flex items-center gap-2.5">
+          <div className="hidden md:flex items-center gap-3">
             {/* Demo Mode Toggle Button */}
             <button
               id="nav-demo-btn"
               onClick={handleDemoClick}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500 cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer ${
                 isDemoMode
-                  ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 shadow-2xs'
-                  : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100 hover:text-stone-900'
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 shadow-2xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              <PlayCircle className={`w-3.5 h-3.5 ${isDemoMode ? 'text-amber-600 animate-spin' : 'text-amber-600'}`} />
-              <span>{isDemoMode ? 'Exit Demo' : 'Try Live Demo'}</span>
+              <PlayCircle className={`w-3.5 h-3.5 ${isDemoMode ? 'text-blue-600' : 'text-slate-500'}`} />
+              <span>{isDemoMode ? 'Exit Demo' : 'Live Storefront Simulator'}</span>
             </button>
 
             {currentUser ? (
-              <div className="flex items-center gap-2.5 pl-3 border-l border-stone-200">
+              <div className="flex items-center gap-3 pl-3 border-l border-slate-200">
                 <div className="text-right">
-                  <div className="text-xs font-bold text-stone-800 leading-tight">
-                    {currentBusiness?.name || currentUser.displayName || 'My Business'}
+                  <div className="text-xs font-bold text-slate-900 leading-tight">
+                    {currentBusiness?.name || currentUser.displayName || 'My Storefront'}
                   </div>
-                  <div className="text-[10px] text-stone-600 truncate max-w-[130px] leading-tight">
+                  <div className="text-[10px] font-mono text-slate-500 truncate max-w-[130px] leading-tight">
                     {currentUser.email}
                   </div>
                 </div>
 
-                <div className="w-7 h-7 rounded-full bg-stone-100 flex items-center justify-center text-stone-700 font-bold text-[10px] border border-stone-300">
+                <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-xs border border-slate-800">
                   {(currentBusiness?.name || currentUser.displayName || 'B').charAt(0).toUpperCase()}
                 </div>
 
                 <button
                   id="nav-logout-btn"
                   onClick={handleLogout}
-                  title="Log out"
-                  className="p-1.5 rounded-lg text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-500"
+                  title="Sign out"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-500 cursor-pointer"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
+                  <LogOut className="w-4 h-4" />
                 </button>
               </div>
             ) : isDemoMode ? (
@@ -186,9 +177,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   id="nav-login-btn"
                   onClick={() => onNavigate('login')}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-stone-900 text-white hover:bg-amber-700 shadow-2xs transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 shadow-2xs transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500"
                 >
-                  Business Sign In
+                  Operator Sign In
                 </button>
               </div>
             ) : (
@@ -196,9 +187,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   id="nav-login-btn"
                   onClick={() => onNavigate('login')}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-stone-900 text-white hover:bg-amber-700 shadow-2xs transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500 flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
                 >
-                  <span>Sign In</span>
+                  Sign In
+                </button>
+                <button
+                  id="nav-getstarted-btn"
+                  onClick={() => onNavigate('login')}
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white hover:bg-blue-600 shadow-xs transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 flex items-center gap-1.5"
+                >
+                  <span>Start Free Trial</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -213,7 +211,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 if (onToggleDemoMode) onToggleDemoMode();
                 else onNavigate('demo');
               }}
-              className="p-2 text-amber-800 bg-amber-50 border border-amber-200 rounded-lg text-xs font-semibold focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500"
+              className="p-2 text-blue-700 bg-blue-50 border border-blue-200 rounded-lg text-xs font-semibold focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500"
               aria-label="Toggle Live Demo"
             >
               <PlayCircle className="w-4 h-4" />
@@ -221,7 +219,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="mobile-menu-toggle"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500"
+              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500"
               aria-label="Toggle Navigation Menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -238,31 +236,31 @@ export const Navbar: React.FC<NavbarProps> = ({
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden bg-white border-b border-stone-200 px-4 pt-2 pb-6 space-y-2 overflow-hidden"
+            className="md:hidden bg-white border-b border-slate-200 px-4 pt-2 pb-6 space-y-2 overflow-hidden shadow-lg"
           >
             {currentUser || isDemoMode ? (
               <div className="space-y-1">
-                <div className="px-3 py-2 text-xs font-bold text-stone-600 uppercase tracking-wider">
+                <div className="px-3 py-2 text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
                   Navigation
                 </div>
                 {navItem('dashboard', 'Dashboard', <LayoutDashboard className="w-4 h-4" />)}
-                {navItem('qr', 'QR Codes', <QrCode className="w-4 h-4" />)}
+                {navItem('qr', 'QR Hardware', <QrCode className="w-4 h-4" />)}
                 {navItem('feedback', 'Customer Feedback', <MessageSquare className="w-4 h-4" />)}
                 {navItem('settings', 'Settings', <Settings className="w-4 h-4" />)}
                 {isAdmin &&
-                  navItem('admin', 'Admin Panel', <ShieldAlert className="w-4 h-4 text-amber-600" />)}
+                  navItem('admin', 'Admin Console', <ShieldAlert className="w-4 h-4 text-blue-600" />)}
 
-                <div className="pt-4 mt-2 border-t border-stone-100 flex items-center justify-between">
+                <div className="pt-4 mt-2 border-t border-slate-100 flex items-center justify-between">
                   <div className="text-xs">
-                    <div className="font-bold text-stone-900">{currentBusiness?.name || 'My Business'}</div>
-                    <div className="text-stone-600">{currentUser?.email || 'Demo Mode'}</div>
+                    <div className="font-bold text-slate-900">{currentBusiness?.name || 'My Storefront'}</div>
+                    <div className="text-slate-500 font-mono text-[11px]">{currentUser?.email || 'Sandbox Mode'}</div>
                   </div>
                   {currentUser ? (
                     <button
                       onClick={handleLogout}
-                      className="px-3 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 rounded-lg cursor-pointer"
+                      className="px-3 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 rounded-lg cursor-pointer"
                     >
-                      Log Out
+                      Sign Out
                     </button>
                   ) : (
                     <button
@@ -270,7 +268,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         onNavigate('login');
                         setMobileMenuOpen(false);
                       }}
-                      className="px-3 py-1.5 text-xs font-bold text-white bg-stone-900 rounded-lg cursor-pointer"
+                      className="px-3 py-1.5 text-xs font-semibold text-white bg-slate-900 rounded-lg cursor-pointer"
                     >
                       Sign In
                     </button>
@@ -284,28 +282,28 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onNavigate('landing');
                     setMobileMenuOpen(false);
                   }}
-                  className="w-full text-left px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50 rounded-lg cursor-pointer"
+                  className="w-full text-left px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 rounded-lg cursor-pointer"
                 >
-                  Home
+                  Platform Overview
                 </button>
                 <button
                   onClick={() => {
                     handleDemoClick();
                     setMobileMenuOpen(false);
                   }}
-                  className="w-full text-left px-3 py-2 text-sm font-bold text-amber-900 bg-amber-50 rounded-lg flex items-center justify-between cursor-pointer border border-amber-200"
+                  className="w-full text-left px-3 py-2 text-sm font-semibold text-blue-700 bg-blue-50 rounded-lg flex items-center justify-between cursor-pointer border border-blue-100"
                 >
-                  <span>Try Live Demo Café</span>
-                  <ChevronRight className="w-4 h-4 text-amber-600" />
+                  <span>Live Storefront Simulator</span>
+                  <ChevronRight className="w-4 h-4 text-blue-600" />
                 </button>
                 <button
                   onClick={() => {
                     onNavigate('login');
                     setMobileMenuOpen(false);
                   }}
-                  className="w-full text-center px-4 py-2.5 text-sm font-bold text-white bg-stone-900 hover:bg-amber-700 rounded-xl shadow-xs cursor-pointer"
+                  className="w-full text-center px-4 py-2.5 text-sm font-semibold text-white bg-slate-900 hover:bg-blue-600 rounded-lg shadow-xs cursor-pointer"
                 >
-                  Business Sign In
+                  Operator Sign In
                 </button>
               </div>
             )}
@@ -315,4 +313,3 @@ export const Navbar: React.FC<NavbarProps> = ({
     </header>
   );
 };
-

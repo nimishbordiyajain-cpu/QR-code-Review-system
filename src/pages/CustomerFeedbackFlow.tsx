@@ -109,7 +109,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
         }
 
         setBusiness(biz);
-        document.title = `${biz.name} — ReviewFlow AI`;
+        document.title = `${biz.name} — ReviewFlow`;
 
         if (qrId) {
           const qr = await getQRCodeById(qrId);
@@ -244,28 +244,28 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" />
-        <span className="text-sm font-semibold text-slate-700">Connecting to feedback experience...</span>
+        <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+        <span className="text-sm font-semibold text-slate-700">Connecting to feedback terminal...</span>
       </div>
     );
   }
 
-  // Error State (e.g. Invalid or disabled QR)
+  // Error State
   if (loadError || !business) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-slate-200 shadow-xl text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto">
-            <AlertCircle className="w-7 h-7" />
+        <div className="max-w-md w-full bg-white rounded-2xl p-8 border border-slate-200 shadow-xl text-center space-y-4">
+          <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto">
+            <AlertCircle className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-bold text-slate-900">QR Touchpoint Unavailable</h2>
+          <h2 className="text-lg font-bold text-slate-900">Touchpoint Unavailable</h2>
           <p className="text-xs text-slate-600 leading-relaxed">
             {loadError || 'The requested business review flow is not accessible.'}
           </p>
           <div className="pt-2">
             <a
               href="/"
-              className="inline-block px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs shadow-sm hover:bg-slate-800 transition-colors"
+              className="inline-block px-5 py-2.5 rounded-xl bg-slate-900 text-white font-semibold text-xs shadow-xs hover:bg-slate-800 transition-colors"
             >
               Return to Homepage
             </a>
@@ -276,24 +276,24 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-between py-5 px-3 sm:px-6">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-between py-6 px-3 sm:px-6">
       <div className="max-w-xl w-full mx-auto space-y-4">
         {/* Business Branding Card */}
-        <div className="bg-white rounded-xl p-3.5 border border-slate-200 shadow-xs flex items-center justify-between gap-3">
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             {business.logoUrl ? (
               <img
                 src={business.logoUrl}
                 alt={business.name}
-                className="w-9 h-9 rounded-lg object-cover border border-slate-100 shadow-2xs"
+                className="w-10 h-10 rounded-xl object-cover border border-slate-100 shadow-2xs"
               />
             ) : (
-              <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black text-sm shadow-2xs">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-base shadow-2xs">
                 {business.name.charAt(0)}
               </div>
             )}
             <div>
-              <h1 className="text-sm font-black text-slate-900 leading-tight">
+              <h1 className="text-sm font-bold text-slate-900 leading-tight">
                 {business.name}
               </h1>
               <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
@@ -304,7 +304,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
           </div>
 
           <div className="text-right shrink-0">
-            <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wider">
+            <span className="inline-block px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-[10px] font-mono font-bold uppercase tracking-wider">
               Step {step} of 4
             </span>
           </div>
@@ -313,7 +313,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
         {/* Progress Bar */}
         <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
           <div
-            className="h-full bg-indigo-600 rounded-full transition-all duration-300"
+            className="h-full bg-blue-600 rounded-full transition-all duration-300"
             style={{ width: `${(step / 4) * 100}%` }}
           />
         </div>
@@ -346,13 +346,13 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
 
         {/* STEP 1: Star Rating (Customer Choice, Never Pre-Selected) */}
         {step === 1 && (
-          <div className="bg-white rounded-xl p-5 sm:p-6 border border-slate-200 shadow-xs space-y-4 animate-in fade-in">
-            <div className="text-center space-y-1">
-              <h2 className="text-lg font-black text-slate-900 tracking-tight">
-                How was your experience?
+          <div className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-5">
+            <div className="text-center space-y-1.5">
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+                How was your experience today?
               </h2>
-              <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
-                Please rate your visit. You have complete control over your rating.
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Please rate your visit. You retain complete control over your rating.
               </p>
             </div>
 
@@ -372,10 +372,9 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
                 id="step-1-instant-ai-btn"
                 disabled={rating === 0}
                 onClick={handleGenerateAIDrafts}
-                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
-                <Sparkles className="w-4 h-4 text-indigo-200" />
-                <span>Get 5 AI Review Suggestions Now</span>
+                <span>Synthesize 5 Review Suggestions</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
 
@@ -386,7 +385,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
                 onClick={() => setStep(2)}
                 className="w-full py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs border border-slate-200 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
-                <span>Add Specific Details & Tags (Optional)</span>
+                <span>Add Specific Highlights (Optional)</span>
               </button>
             </div>
           </div>
@@ -394,19 +393,19 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
 
         {/* STEP 2: Category Chips */}
         {step === 2 && (
-          <div className="bg-white rounded-xl p-5 sm:p-6 border border-slate-200 shadow-xs space-y-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-5">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-black text-slate-900">What stood out?</h2>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Select any elements that describe your visit (multiple allowed).
+                <h2 className="text-base font-bold text-slate-900">What stood out during your visit?</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Select any highlights that describe your visit.
                 </p>
               </div>
               <button
                 onClick={() => setStep(1)}
-                className="text-xs text-slate-400 hover:text-slate-700 flex items-center gap-1 font-semibold"
+                className="text-xs text-slate-400 hover:text-slate-700 flex items-center gap-1 font-semibold cursor-pointer"
               >
-                <ArrowLeft className="w-3 h-3" />
+                <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Back</span>
               </button>
             </div>
@@ -417,7 +416,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
 
                 return (
                   <div key={idx} className="space-y-1.5">
-                    <span className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider">
+                    <span className="block text-[10px] font-mono font-bold text-slate-700 uppercase tracking-wider">
                       {catGroup.title}
                     </span>
                     <div className="flex flex-wrap gap-1.5">
@@ -430,9 +429,9 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
                             key={opt}
                             type="button"
                             onClick={() => handleToggleChip(chipTag)}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                               isSelected
-                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
                                 : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                             }`}
                           >
@@ -450,10 +449,9 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
               <button
                 id="step-2-instant-review-btn"
                 onClick={handleGenerateAIDrafts}
-                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Sparkles className="w-4 h-4 text-indigo-200" />
-                <span>Get AI Review Suggestions</span>
+                <span>Synthesize Review Suggestions</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
 
@@ -462,7 +460,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
                 onClick={() => setStep(3)}
                 className="w-full py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs border border-slate-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <span>Add Private Notes / Written Comment (Optional)</span>
+                <span>Add Private Notes / Comment (Optional)</span>
               </button>
             </div>
           </div>
@@ -470,27 +468,27 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
 
         {/* STEP 3: Optional Written Comment & Private Feedback */}
         {step === 3 && (
-          <div className="bg-white rounded-xl p-5 sm:p-6 border border-slate-200 shadow-xs space-y-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-5">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-black text-slate-900">Want to tell us more?</h2>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Optional details help the AI write a personalized review draft.
+                <h2 className="text-base font-bold text-slate-900">Additional Notes</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Optional details help the synthesis engine draft a personalized review.
                 </p>
               </div>
               <button
                 onClick={() => setStep(2)}
-                className="text-xs text-slate-400 hover:text-slate-700 flex items-center gap-1 font-semibold"
+                className="text-xs text-slate-400 hover:text-slate-700 flex items-center gap-1 font-semibold cursor-pointer"
               >
-                <ArrowLeft className="w-3 h-3" />
+                <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Back</span>
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3.5">
               {/* Optional experience text */}
               <div>
-                <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                <label className="block text-[10px] font-mono font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Your Experience Highlights (Optional)
                 </label>
                 <textarea
@@ -499,37 +497,37 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
                   maxLength={500}
                   value={customerComment}
                   onChange={(e) => setCustomerComment(e.target.value)}
-                  placeholder="e.g. Loved the iced latte and the croissant was super fresh..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
+                  placeholder="e.g. Loved the espresso and the pastries were freshly baked..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-500 transition-all"
                 />
-                <span className="text-[10px] text-slate-400 block text-right">
+                <span className="text-[10px] text-slate-400 block text-right font-mono mt-0.5">
                   {customerComment.length}/500 chars
                 </span>
               </div>
 
               {/* Private note to owner */}
-              <div className="bg-amber-50/60 border border-amber-200/80 rounded-lg p-3 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
-                  <Lock className="w-3 h-3 text-amber-700" />
-                  <span>Private Note to Business (Will NOT be in public review)</span>
+              <div className="bg-blue-50/60 border border-blue-200/80 rounded-xl p-3.5 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-blue-950">
+                  <Lock className="w-3.5 h-3.5 text-blue-700" />
+                  <span>Private Note to Business (Will NOT appear on Google)</span>
                 </div>
-                <p className="text-[11px] text-amber-800 leading-relaxed">
-                  Have a suggestion or private note? Only the business owner sees this on their dashboard.
+                <p className="text-[11px] text-blue-800 leading-relaxed">
+                  Have a suggestion or constructive note? Only the business owner sees this on their dashboard.
                 </p>
                 <textarea
                   id="customer-private-feedback-input"
                   rows={2}
                   value={privateFeedback}
                   onChange={(e) => setPrivateFeedback(e.target.value)}
-                  placeholder="e.g. The patio heaters were a bit low today..."
-                  className="w-full bg-white border border-amber-200 rounded-lg p-2 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  placeholder="e.g. The patio seating was a bit chilly today..."
+                  className="w-full bg-white border border-blue-200 rounded-lg p-2.5 text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
                 />
               </div>
 
               {/* Customer Name */}
               <div>
-                <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Your First Name (Optional)
+                <label className="block text-[10px] font-mono font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  First Name (Optional)
                 </label>
                 <div className="flex items-center gap-2.5">
                   <input
@@ -539,7 +537,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     placeholder="First Name only (e.g. Alex)"
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-40"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-500 disabled:opacity-40"
                   />
                   <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none">
                     <input
@@ -549,7 +547,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
                         setIsAnonymous(e.target.checked);
                         if (e.target.checked) setCustomerName('');
                       }}
-                      className="rounded text-indigo-600 focus:ring-indigo-500"
+                      className="rounded text-blue-600 focus:ring-blue-500"
                     />
                     <span>Anonymous</span>
                   </label>
@@ -560,43 +558,43 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
             <button
               id="generate-drafts-btn"
               onClick={handleGenerateAIDrafts}
-              className="w-full py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5"
+              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Generate 5 AI Review Suggestions</span>
+              <span>Synthesize Review Suggestions</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
 
-        {/* STEP 4: 5 AI Review Drafts, Edit, & Continue to Google */}
+        {/* STEP 4: 5 Review Drafts, Edit, & Continue to Google */}
         {step === 4 && (
-          <div className="bg-white rounded-xl p-5 sm:p-6 border border-slate-200 shadow-xs space-y-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-4">
             {generatingDrafts ? (
               <div className="py-12 text-center space-y-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto animate-bounce">
-                  <Sparkles className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto animate-spin">
+                  <RefreshCw className="w-5 h-5" />
                 </div>
                 <h3 className="text-sm font-bold text-slate-900">
-                  Creating 5 Authentic Review Variations...
+                  Synthesizing Review Variations...
                 </h3>
                 <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  Crafting Short, Friendly, Detailed, Professional, and Casual styles based only on your input.
+                  Preparing Short, Friendly, Detailed, Professional, and Casual styles grounded in your highlights.
                 </p>
               </div>
             ) : (
               <>
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                   <div>
-                    <h2 className="text-base font-black text-slate-900">Your Review Suggestions</h2>
-                    <p className="text-[11px] text-slate-500">
-                      Pick your favorite style, edit anything, then copy & continue to Google.
+                    <h2 className="text-base font-bold text-slate-900">Your Review Suggestions</h2>
+                    <p className="text-xs text-slate-500">
+                      Pick your preferred style, edit anything, then copy & continue to Google.
                     </p>
                   </div>
                   <button
                     onClick={() => setStep(previousStep || 1)}
-                    className="text-xs text-slate-400 hover:text-slate-700 flex items-center gap-1 font-semibold"
+                    className="text-xs text-slate-400 hover:text-slate-700 flex items-center gap-1 font-semibold cursor-pointer"
                   >
-                    <ArrowLeft className="w-3 h-3" />
+                    <ArrowLeft className="w-3.5 h-3.5" />
                     <span>Back</span>
                   </button>
                 </div>
@@ -620,7 +618,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
                       id="customer-copy-review-btn"
                       type="button"
                       onClick={handleCopyReview}
-                      className="flex-1 py-2.5 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all flex items-center justify-center gap-1.5"
+                      className="flex-1 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       {copiedReview ? (
                         <>
@@ -639,7 +637,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
                       id="customer-continue-google-btn"
                       type="button"
                       onClick={handleContinueToGoogle}
-                      className="flex-1 py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-2xs transition-all flex items-center justify-center gap-1.5"
+                      className="flex-1 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <span>Continue to Google</span>
                       <ExternalLink className="w-3.5 h-3.5" />
@@ -647,7 +645,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
                   </div>
 
                   {googleOpened && (
-                    <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-[11px] text-emerald-900 text-center animate-in fade-in">
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 text-center">
                       <span className="font-bold">Opening Google in a new tab... </span>
                       Please paste your copied review text and click Submit on Google. Thank you for supporting {business.name}!
                     </div>
@@ -657,7 +655,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
                     <div className="text-center pt-1">
                       <button
                         onClick={onFinishedDemo}
-                        className="text-xs font-bold text-indigo-600 hover:underline"
+                        className="text-xs font-semibold text-blue-600 hover:underline cursor-pointer"
                       >
                         Return to Demo Dashboard & View Feedbacks →
                       </button>
@@ -672,7 +670,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
 
       {/* Footer minimal info */}
       <div className="max-w-xl mx-auto text-center pt-4 text-[10px] text-slate-400 space-y-0.5">
-        <div>Powered by ReviewFlow AI • Authentic Customer Feedback</div>
+        <div>ReviewFlow Enterprise • Customer Feedback Terminal</div>
         <div>You remain 100% in control of your rating and review submission.</div>
       </div>
     </div>

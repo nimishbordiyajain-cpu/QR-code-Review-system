@@ -1,27 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
-    <linearGradient id="rfGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#4F46E5" />
-      <stop offset="100%" stop-color="#3730A3" />
-    </linearGradient>
-    <linearGradient id="sparkleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF" />
-      <stop offset="100%" stop-color="#E0E7FF" />
+    <linearGradient id="favBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#020617" />
     </linearGradient>
   </defs>
   
-  <!-- Rounded Base Background -->
-  <rect width="64" height="64" rx="16" fill="url(#rfGrad)" />
+  <!-- Base Squircle -->
+  <rect width="64" height="64" rx="16" fill="url(#favBg)" />
+  <rect x="1" y="1" width="62" height="62" rx="15" fill="none" stroke="#334155" stroke-width="1.5" />
   
-  <!-- Chat Review Bubble Outline / Plate -->
-  <path d="M18 20 C18 16.686 20.686 14 24 14 L40 14 C43.314 14 46 16.686 46 20 L46 36 C46 39.314 43.314 42 40 42 L28 42 L20 48 L20 42 C18.895 42 18 41.105 18 40 Z" fill="none" stroke="rgba(255, 255, 255, 0.25)" stroke-width="2.5" stroke-linejoin="round" />
-  
-  <!-- Main Center AI Sparkle -->
-  <path d="M32 20 C32 25 35 28 40 28 C35 28 32 31 32 36 C32 31 29 28 24 28 C29 28 32 25 32 20 Z" fill="url(#sparkleGrad)" />
-  
-  <!-- Secondary Top-Right Sparkle -->
-  <path d="M44 19 C44 21.5 45.5 23 48 23 C45.5 23 44 24.5 44 27 C44 24.5 42.5 23 40 23 C42.5 23 44 21.5 44 19 Z" fill="#A5B4FC" />
-  
-  <!-- Small Star Indicator Bottom Left -->
-  <circle cx="25" cy="35" r="1.75" fill="#C7D2FE" />
+  <!-- ReviewFlow Monogram -->
+  <g transform="translate(8, 8) scale(1.5)">
+    <!-- Feedback Arc -->
+    <path d="M5 16C5 9.92487 9.92487 5 16 5" stroke="#94A3B8" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2 2" />
+    
+    <!-- Letter R Stem & Loop -->
+    <path d="M9 24V8C9 7.44772 9.44772 7 10 7H16.5C19.5376 7 22 9.46243 22 12.5C22 15.5376 19.5376 18 16.5 18H9.5" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+    
+    <!-- Forward Vector Flow -->
+    <path d="M15 18L23 25" stroke="#3B82F6" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" />
+    
+    <!-- Verification Status Dot -->
+    <circle cx="24" cy="8.5" r="2.25" fill="#10B981" />
+  </g>
 </svg>
