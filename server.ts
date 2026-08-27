@@ -3,7 +3,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
-import { getAdminAuth, getAdminFirestore, getAdminEmails } from './api/firebaseAdmin';
+import { getAdminAuth, getAdminFirestore, getAdminEmails } from './api/_lib/firebaseAdmin';
 
 dotenv.config();
 

@@ -15,7 +15,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { getAdminAuth, getAdminFirestore, isEmailInAdminAllowlist } from '../api/firebaseAdmin';
+import { getAdminAuth, getAdminFirestore, isEmailInAdminAllowlist } from '../api/_lib/firebaseAdmin';
 
 async function bootstrapAdmin() {
   const args = process.argv.slice(2);

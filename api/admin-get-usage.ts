@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminFirestore, verifyAdminRequest } from './firebaseAdmin';
+import { getAdminFirestore, verifyAdminRequest } from './_lib/firebaseAdmin';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET' && req.method !== 'POST') {

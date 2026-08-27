@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminAuth, getAdminEmails, isEmailInAdminAllowlist } from './firebaseAdmin';
+import { getAdminAuth, getAdminEmails, isEmailInAdminAllowlist } from './_lib/firebaseAdmin';
 
 /**
  * Endpoint to bootstrap / assign `admin: true` custom claim to authorized administrators.

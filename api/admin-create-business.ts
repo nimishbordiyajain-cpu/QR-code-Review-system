@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminAuth, getAdminFirestore, isEmailInAdminAllowlist } from './firebaseAdmin';
+import { getAdminAuth, getAdminFirestore, isEmailInAdminAllowlist } from './_lib/firebaseAdmin';
 
 function generateSlug(name: string): string {
   return name
