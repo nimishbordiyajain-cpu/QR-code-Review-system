@@ -40,8 +40,8 @@ exports.enforceAdminProvisioning = functions.auth.user().onCreate(async (user) =
   const email = (user.email || '').toLowerCase().trim();
   const uid = user.uid;
 
-  // Retrieve admin allowlist from environment or default config
-  const adminEmails = (process.env.ADMIN_EMAILS || 'admin@authenticreviews.com,nimishbordiyajain@gmail.com')
+  // Retrieve admin allowlist from environment
+  const adminEmails = (process.env.ADMIN_EMAILS || '')
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);

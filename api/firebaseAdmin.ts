@@ -43,23 +43,16 @@ export function getAdminFirestore(): Firestore {
   return getFirestore(app);
 }
 
-const DEFAULT_ADMIN_EMAILS = [
-  'admin@reviewai.com',
-  'admin@authenticreviews.com',
-  'nimishbordiyajain@gmail.com',
-];
-
 export function getAdminEmails(): string[] {
   const envAdmins = process.env.ADMIN_EMAILS;
-  if (!envAdmins) return DEFAULT_ADMIN_EMAILS;
-  const list = envAdmins
+  if (!envAdmins || !envAdmins.trim()) {
+    console.warn('[Admin Security] Warning: ADMIN_EMAILS environment variable is not configured. Admin allowlist is empty.');
+    return [];
+  }
+  return envAdmins
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
-  DEFAULT_ADMIN_EMAILS.forEach((email) => {
-    if (!list.includes(email)) list.push(email);
-  });
-  return list;
 }
 
 export function isEmailInAdminAllowlist(email?: string | null): boolean {
@@ -68,65 +61,27 @@ export function isEmailInAdminAllowlist(email?: string | null): boolean {
   return adminList.includes(email.trim().toLowerCase());
 }
 
-export async function ensureAdminUserAccount(
-  email: string = 'admin@reviewai.com',
-  password: string = 'admin123@nimish',
-  displayName: string = 'Super Admin'
-) {
+export async function verifyAdminRequest(req: any): Promise<{ uid: string; email?: string } | null> {
   try {
-    const auth = getAdminAuth();
-    const db = getAdminFirestore();
-    const cleanEmail = email.trim().toLowerCase();
-
-    let userRecord;
-    try {
-      userRecord = await auth.getUserByEmail(cleanEmail);
-      await auth.updateUser(userRecord.uid, {
-        password,
-        displayName,
-        emailVerified: true,
-        disabled: false,
-      });
-    } catch (err: any) {
-      if (err?.code === 'auth/user-not-found') {
-        userRecord = await auth.createUser({
-          email: cleanEmail,
-          password,
-          displayName,
-          emailVerified: true,
-          disabled: false,
-        });
-      } else {
-        throw err;
-      }
+    const authHeader = req.headers?.authorization;
+    let idToken = '';
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      idToken = authHeader.substring(7).trim();
+    } else if (req.body && req.body.idToken) {
+      idToken = req.body.idToken;
     }
 
-    if (userRecord) {
-      await auth.setCustomUserClaims(userRecord.uid, {
-        admin: true,
-        provisionedByAdmin: true,
-      });
+    if (!idToken) return null;
 
-      // Mirror to Firestore user doc
-      try {
-        await db.collection('users').doc(userRecord.uid).set(
-          {
-            uid: userRecord.uid,
-            email: cleanEmail,
-            displayName,
-            role: 'admin',
-            updatedAt: new Date().toISOString(),
-          },
-          { merge: true }
-        );
-      } catch (firestoreErr) {
-        console.warn('Could not mirror admin user to Firestore:', firestoreErr);
-      }
-    }
-    console.log(`[Admin Provisioning] Successfully ensured admin account: ${cleanEmail}`);
-    return userRecord;
-  } catch (error) {
-    console.warn('[Admin Provisioning] Note: Admin account initialization result:', error);
+    const adminAuth = getAdminAuth();
+    const decoded = await adminAuth.verifyIdToken(idToken);
+    const isCallerAdmin = decoded.admin === true || isEmailInAdminAllowlist(decoded.email);
+    if (!isCallerAdmin) return null;
+
+    return { uid: decoded.uid, email: decoded.email };
+  } catch (err) {
+    console.error('Error verifying admin request:', err);
     return null;
   }
 }
+

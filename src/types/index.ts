@@ -32,6 +32,7 @@ export interface BusinessProfile {
   ownerId: string;
   name: string;
   ownerName?: string;
+  ownerPhone?: string;
   email?: string;
   phone?: string;
   category: BusinessCategory;
@@ -42,6 +43,14 @@ export interface BusinessProfile {
   slug: string;
   status: 'active' | 'disabled';
   dailyGenerationLimit?: number;
+  planName?: string;
+  billingCycle?: 'monthly' | 'quarterly' | 'yearly' | 'one-time';
+  amountPaid?: number;
+  currency?: string;
+  nextRenewalDate?: string;
+  adminNotes?: string;
+  provisionedAt?: string;
+  lastCredentialResetAt?: string;
   customCategories?: string[];
   createdAt: string;
   updatedAt?: string;

@@ -9,6 +9,27 @@ function generateSlug(name: string): string {
     .replace(/(^-|-$)+/g, '');
 }
 
+async function generateUniqueAdminSlug(adminDb: any, name: string): Promise<string> {
+  const baseSlug = generateSlug(name) || 'business';
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidateSuffix = Math.random().toString(36).substring(2, 6);
+    const candidateSlug = `${baseSlug}-${candidateSuffix}`;
+
+    try {
+      const snap = await adminDb.collection('businesses').where('slug', '==', candidateSlug).limit(1).get();
+      if (snap.empty) {
+        return candidateSlug;
+      }
+    } catch (err) {
+      console.warn('Could not query candidate slug in Admin SDK:', err);
+    }
+  }
+
+  const fallbackSuffix = `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 8)}`;
+  return `${baseSlug}-${fallbackSuffix}`;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
@@ -54,20 +75,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const {
       name: rawName,
       ownerName: rawOwnerName,
+      ownerPhone: rawOwnerPhone,
       email: rawEmail,
       phone: rawPhone,
       category: rawCategory,
       address: rawAddress,
+      googleReviewUrl: rawGoogleReviewUrl,
+      logoUrl: rawLogoUrl,
       dailyGenerationLimit: rawLimit,
+      planName: rawPlanName,
+      billingCycle: rawBillingCycle,
+      amountPaid: rawAmountPaid,
+      currency: rawCurrency,
+      nextRenewalDate: rawNextRenewalDate,
+      adminNotes: rawAdminNotes,
     } = req.body || {};
 
     const cleanName = typeof rawName === 'string' ? rawName.trim() : '';
     const cleanOwnerName = typeof rawOwnerName === 'string' ? rawOwnerName.trim() : '';
+    const cleanOwnerPhone = typeof rawOwnerPhone === 'string' ? rawOwnerPhone.trim() : '';
     const cleanEmail = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : '';
     const cleanPhone = typeof rawPhone === 'string' ? rawPhone.trim() : '';
     const cleanCategory = typeof rawCategory === 'string' ? rawCategory.trim() : 'Other';
     const cleanAddress = typeof rawAddress === 'string' ? rawAddress.trim() : '';
+    const cleanGoogleReviewUrl = typeof rawGoogleReviewUrl === 'string' ? rawGoogleReviewUrl.trim() : '';
+    const cleanLogoUrl = typeof rawLogoUrl === 'string' ? rawLogoUrl.trim() : '';
     const limitNum = typeof rawLimit === 'number' && rawLimit > 0 ? Math.min(1000, Math.round(rawLimit)) : 50;
+
+    const cleanPlanName = typeof rawPlanName === 'string' && rawPlanName.trim() ? rawPlanName.trim() : 'Standard';
+    const allowedCycles = ['monthly', 'quarterly', 'yearly', 'one-time'];
+    const cleanBillingCycle = allowedCycles.includes(rawBillingCycle) ? rawBillingCycle : 'monthly';
+    const cleanAmountPaid = typeof rawAmountPaid === 'number' ? Math.max(0, rawAmountPaid) : 0;
+    const cleanCurrency = typeof rawCurrency === 'string' && rawCurrency.trim() ? rawCurrency.trim().toUpperCase() : 'INR';
+    const cleanNextRenewalDate = typeof rawNextRenewalDate === 'string' && rawNextRenewalDate.trim()
+      ? rawNextRenewalDate.trim()
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const cleanAdminNotes = typeof rawAdminNotes === 'string' ? rawAdminNotes.trim() : '';
 
     if (!cleanName || !cleanEmail) {
       return res.status(400).json({
@@ -114,10 +157,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       admin: isEmailInAdminAllowlist(cleanEmail),
     });
 
-    // 5. Create Firestore business document
-    const businessId = `biz_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const baseSlug = generateSlug(cleanName);
-    const slug = `${baseSlug}-${Math.random().toString(36).substring(2, 6)}`;
+    // 5. Create Firestore business document with unique slug and high-entropy ID
+    const businessDocRef = adminDb.collection('businesses').doc();
+    const businessId = businessDocRef.id;
+    const slug = await generateUniqueAdminSlug(adminDb, cleanName);
     const nowIso = new Date().toISOString();
 
     const businessData = {
@@ -125,16 +168,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ownerId: newUid,
       name: cleanName,
       ownerName: cleanOwnerName,
+      ownerPhone: cleanOwnerPhone,
       email: cleanEmail,
       phone: cleanPhone,
       category: cleanCategory,
       address: cleanAddress,
       description: '',
-      logoUrl: '',
-      googleReviewUrl: '',
+      logoUrl: cleanLogoUrl,
+      googleReviewUrl: cleanGoogleReviewUrl,
       slug,
       status: 'active',
       dailyGenerationLimit: limitNum,
+      planName: cleanPlanName,
+      billingCycle: cleanBillingCycle,
+      amountPaid: cleanAmountPaid,
+      currency: cleanCurrency,
+      nextRenewalDate: cleanNextRenewalDate,
+      adminNotes: cleanAdminNotes,
+      provisionedAt: nowIso,
       createdAt: nowIso,
       updatedAt: nowIso,
     };

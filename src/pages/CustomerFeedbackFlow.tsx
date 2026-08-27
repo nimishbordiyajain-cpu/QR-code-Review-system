@@ -57,6 +57,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
   const [privateFeedback, setPrivateFeedback] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
   const [isAnonymous, setIsAnonymous] = useState<boolean>(false);
+  const [honeypot, setHoneypot] = useState<string>('');
 
   // AI Review State
   const [generatingDrafts, setGeneratingDrafts] = useState<boolean>(false);
@@ -166,6 +167,7 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
             privateFeedback: privateFeedback.trim() || undefined,
             customerName: isAnonymous ? undefined : customerName.trim() || undefined,
             isAnonymous,
+            honeypot,
           });
           savedFbId = newFb.id;
           setSubmittedFeedbackId(newFb.id);
@@ -313,6 +315,32 @@ export const CustomerFeedbackFlow: React.FC<CustomerFeedbackFlowProps> = ({
           <div
             className="h-full bg-indigo-600 rounded-full transition-all duration-300"
             style={{ width: `${(step / 4) * 100}%` }}
+          />
+        </div>
+
+        {/* Bot Honeypot Field (Invisible to human users) */}
+        <div
+          style={{
+            position: 'absolute',
+            left: '-9999px',
+            opacity: 0,
+            height: 0,
+            width: 0,
+            overflow: 'hidden',
+            pointerEvents: 'none',
+          }}
+          aria-hidden="true"
+          tabIndex={-1}
+        >
+          <label htmlFor="website_hp">Leave this blank</label>
+          <input
+            id="website_hp"
+            name="website_hp"
+            type="text"
+            value={honeypot}
+            onChange={(e) => setHoneypot(e.target.value)}
+            autoComplete="off"
+            tabIndex={-1}
           />
         </div>
 

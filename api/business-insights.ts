@@ -34,41 +34,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const businessName = sanitizeInputString(rawBizName, 100);
     const category = sanitizeInputString(rawCat, 60);
 
-    // Validate business status & limits if businessId provided
+    if (!businessId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameter: businessId is required.',
+      });
+    }
+
+    // Validate business status & limits in Firestore
+    const adminDb = getAdminFirestore();
     let dailyLimit = 50;
     let currentDayUsage = 0;
     let limitReached = false;
 
-    if (businessId) {
-      try {
-        const adminDb = getAdminFirestore();
-        const bizDoc = await adminDb.collection('businesses').doc(businessId).get();
-        if (bizDoc.exists) {
-          const bizData = bizDoc.data();
-          if (bizData?.status === 'disabled') {
-            return res.status(403).json({
-              success: false,
-              error: 'Business account is currently inactive. Contact your administrator for assistance.',
-            });
-          }
-          if (typeof bizData?.dailyGenerationLimit === 'number' && bizData.dailyGenerationLimit > 0) {
-            dailyLimit = bizData.dailyGenerationLimit;
-          }
-        }
-
-        const todayStr = new Date().toISOString().split('T')[0];
-        const usageRef = adminDb.collection('dailyUsage').doc(`${businessId}_${todayStr}`);
-        const usageSnap = await usageRef.get();
-        if (usageSnap.exists) {
-          currentDayUsage = usageSnap.data()?.count || 0;
-        }
-
-        if (currentDayUsage >= dailyLimit) {
-          limitReached = true;
-        }
-      } catch (checkErr) {
-        console.warn('Daily usage check non-fatal warning:', checkErr);
+    try {
+      const bizDoc = await adminDb.collection('businesses').doc(businessId).get();
+      if (!bizDoc.exists) {
+        return res.status(400).json({
+          success: false,
+          error: 'Business not found.',
+        });
       }
+
+      const bizData = bizDoc.data();
+      if (bizData?.status === 'disabled') {
+        return res.status(403).json({
+          success: false,
+          error: 'Business account is currently inactive. Contact your administrator for assistance.',
+        });
+      }
+
+      if (typeof bizData?.dailyGenerationLimit === 'number' && bizData.dailyGenerationLimit > 0) {
+        dailyLimit = bizData.dailyGenerationLimit;
+      }
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const usageRef = adminDb.collection('dailyUsage').doc(`${businessId}_${todayStr}`);
+      const usageSnap = await usageRef.get();
+      if (usageSnap.exists) {
+        currentDayUsage = usageSnap.data()?.count || 0;
+      }
+
+      if (currentDayUsage >= dailyLimit) {
+        limitReached = true;
+      }
+    } catch (checkErr: any) {
+      console.warn('Daily usage check warning:', checkErr?.message || checkErr);
     }
 
     if (limitReached) {

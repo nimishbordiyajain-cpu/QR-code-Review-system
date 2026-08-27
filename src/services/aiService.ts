@@ -178,6 +178,7 @@ export async function generateReviewDrafts(
 }
 
 export async function fetchBusinessAIInsights(
+  businessId: string,
   businessName: string,
   category: string,
   feedbacks: CustomerFeedback[]
@@ -241,6 +242,7 @@ export async function fetchBusinessAIInsights(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        businessId,
         businessName,
         category,
         feedbacksSummary: {

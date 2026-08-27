@@ -146,7 +146,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const handleGenerateAIInsights = async () => {
     setGeneratingInsights(true);
     try {
-      const insights = await fetchBusinessAIInsights(business.name, business.category, feedbacks);
+      const insights = await fetchBusinessAIInsights(business.id, business.name, business.category, feedbacks);
       setAiInsights(insights);
     } catch (err) {
       console.error('AI Insights generation error:', err);

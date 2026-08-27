@@ -53,16 +53,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onOpenDemo, on
       }
 
       await login(cleanEmail, password);
-      const isKnownAdmin = [
-        'admin@reviewai.com',
-        'admin@authenticreviews.com',
-        'nimishbordiyajain@gmail.com',
-      ].includes(cleanEmail.toLowerCase());
-      if (isKnownAdmin) {
-        onNavigate('admin');
-      } else {
-        onNavigate('dashboard');
-      }
+      onNavigate('dashboard');
     } catch (err: any) {
       console.error('Login error:', err);
       const code = err?.code || '';
@@ -239,19 +230,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onOpenDemo, on
           </div>
 
           <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setEmail('admin@reviewai.com');
-                setPassword('admin123@nimish');
-                setErrorInfo(null);
-              }}
-              className="w-full py-2.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
-            >
-              <Lock className="w-3.5 h-3.5 text-amber-400" />
-              <span>Fill Admin Credentials</span>
-            </button>
-
             <button
               type="button"
               onClick={handleDemoClick}

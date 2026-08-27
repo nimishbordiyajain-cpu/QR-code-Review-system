@@ -3,7 +3,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
-import { getAdminAuth, getAdminFirestore, getAdminEmails, ensureAdminUserAccount } from './api/firebaseAdmin';
+import { getAdminAuth, getAdminFirestore, getAdminEmails } from './api/firebaseAdmin';
 
 dotenv.config();
 
@@ -328,20 +328,42 @@ app.post('/api/admin-create-business', async (req: Request, res: Response) => {
     const {
       name: rawName,
       ownerName: rawOwnerName,
+      ownerPhone: rawOwnerPhone,
       email: rawEmail,
       phone: rawPhone,
       category: rawCategory,
       address: rawAddress,
+      googleReviewUrl: rawGoogleReviewUrl,
+      logoUrl: rawLogoUrl,
       dailyGenerationLimit: rawLimit,
+      planName: rawPlanName,
+      billingCycle: rawBillingCycle,
+      amountPaid: rawAmountPaid,
+      currency: rawCurrency,
+      nextRenewalDate: rawNextRenewalDate,
+      adminNotes: rawAdminNotes,
     } = req.body || {};
 
     const cleanName = typeof rawName === 'string' ? rawName.trim() : '';
     const cleanOwnerName = typeof rawOwnerName === 'string' ? rawOwnerName.trim() : '';
+    const cleanOwnerPhone = typeof rawOwnerPhone === 'string' ? rawOwnerPhone.trim() : '';
     const cleanEmail = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : '';
     const cleanPhone = typeof rawPhone === 'string' ? rawPhone.trim() : '';
     const cleanCategory = typeof rawCategory === 'string' ? rawCategory.trim() : 'Other';
     const cleanAddress = typeof rawAddress === 'string' ? rawAddress.trim() : '';
+    const cleanGoogleReviewUrl = typeof rawGoogleReviewUrl === 'string' ? rawGoogleReviewUrl.trim() : '';
+    const cleanLogoUrl = typeof rawLogoUrl === 'string' ? rawLogoUrl.trim() : '';
     const limitNum = typeof rawLimit === 'number' && rawLimit > 0 ? Math.min(1000, Math.round(rawLimit)) : 50;
+
+    const cleanPlanName = typeof rawPlanName === 'string' && rawPlanName.trim() ? rawPlanName.trim() : 'Standard';
+    const allowedCycles = ['monthly', 'quarterly', 'yearly', 'one-time'];
+    const cleanBillingCycle = allowedCycles.includes(rawBillingCycle) ? rawBillingCycle : 'monthly';
+    const cleanAmountPaid = typeof rawAmountPaid === 'number' ? Math.max(0, rawAmountPaid) : 0;
+    const cleanCurrency = typeof rawCurrency === 'string' && rawCurrency.trim() ? rawCurrency.trim().toUpperCase() : 'INR';
+    const cleanNextRenewalDate = typeof rawNextRenewalDate === 'string' && rawNextRenewalDate.trim()
+      ? rawNextRenewalDate.trim()
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const cleanAdminNotes = typeof rawAdminNotes === 'string' ? rawAdminNotes.trim() : '';
 
     if (!cleanName || !cleanEmail) {
       return res.status(400).json({
@@ -376,7 +398,8 @@ app.post('/api/admin-create-business', async (req: Request, res: Response) => {
       admin: Boolean(adminEmails.includes(cleanEmail)),
     });
 
-    const businessId = `biz_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const businessDocRef = adminDb.collection('businesses').doc();
+    const businessId = businessDocRef.id;
     const baseSlug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') || 'business';
     
     let slug = `${baseSlug}-${Math.random().toString(36).substring(2, 6)}`;
@@ -394,16 +417,24 @@ app.post('/api/admin-create-business', async (req: Request, res: Response) => {
       ownerId: newUid,
       name: cleanName,
       ownerName: cleanOwnerName,
+      ownerPhone: cleanOwnerPhone,
       email: cleanEmail,
       phone: cleanPhone,
       category: cleanCategory,
       address: cleanAddress,
       description: '',
-      logoUrl: '',
-      googleReviewUrl: '',
+      logoUrl: cleanLogoUrl,
+      googleReviewUrl: cleanGoogleReviewUrl,
       slug,
       status: 'active',
       dailyGenerationLimit: limitNum,
+      planName: cleanPlanName,
+      billingCycle: cleanBillingCycle,
+      amountPaid: cleanAmountPaid,
+      currency: cleanCurrency,
+      nextRenewalDate: cleanNextRenewalDate,
+      adminNotes: cleanAdminNotes,
+      provisionedAt: nowIso,
       createdAt: nowIso,
       updatedAt: nowIso,
     };
@@ -447,6 +478,484 @@ app.post('/api/admin-create-business', async (req: Request, res: Response) => {
   }
 });
 
+// Admin: Update business profile, plan, and billing configurations
+app.post('/api/admin-update-business', async (req: Request, res: Response) => {
+  try {
+    const adminEmails = (process.env.ADMIN_EMAILS || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+
+    const authHeader = req.headers.authorization;
+    let idToken = '';
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      idToken = authHeader.substring(7).trim();
+    } else if (req.body && req.body.idToken) {
+      idToken = req.body.idToken;
+    }
+
+    if (!idToken) {
+      return res.status(401).json({ success: false, error: 'Unauthorized: Admin token required.' });
+    }
+
+    const adminAuth = getAdminAuth();
+    const adminDb = getAdminFirestore();
+
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const isCallerAdmin = decodedToken.admin === true || adminEmails.includes(decodedToken.email?.toLowerCase() || '');
+    if (!isCallerAdmin) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Admin privileges required.' });
+    }
+
+    const {
+      businessId: rawBizId,
+      name: rawName,
+      ownerName: rawOwnerName,
+      ownerPhone: rawOwnerPhone,
+      email: rawEmail,
+      phone: rawPhone,
+      category: rawCategory,
+      address: rawAddress,
+      googleReviewUrl: rawGoogleReviewUrl,
+      logoUrl: rawLogoUrl,
+      dailyGenerationLimit: rawLimit,
+      planName: rawPlanName,
+      billingCycle: rawBillingCycle,
+      amountPaid: rawAmountPaid,
+      currency: rawCurrency,
+      nextRenewalDate: rawNextRenewalDate,
+      adminNotes: rawAdminNotes,
+      status: rawStatus,
+    } = req.body || {};
+
+    const businessId = typeof rawBizId === 'string' ? rawBizId.trim() : '';
+    if (!businessId) {
+      return res.status(400).json({ success: false, error: 'Business ID is required.' });
+    }
+
+    const bizRef = adminDb.collection('businesses').doc(businessId);
+    const bizSnap = await bizRef.get();
+    if (!bizSnap.exists) {
+      return res.status(404).json({ success: false, error: 'Business document not found.' });
+    }
+
+    const updates: Record<string, any> = {
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (typeof rawName === 'string' && rawName.trim()) updates.name = rawName.trim();
+    if (typeof rawOwnerName === 'string') updates.ownerName = rawOwnerName.trim();
+    if (typeof rawOwnerPhone === 'string') updates.ownerPhone = rawOwnerPhone.trim();
+    if (typeof rawEmail === 'string' && rawEmail.trim()) updates.email = rawEmail.trim().toLowerCase();
+    if (typeof rawPhone === 'string') updates.phone = rawPhone.trim();
+    if (typeof rawCategory === 'string' && rawCategory.trim()) updates.category = rawCategory.trim();
+    if (typeof rawAddress === 'string') updates.address = rawAddress.trim();
+    if (typeof rawGoogleReviewUrl === 'string') updates.googleReviewUrl = rawGoogleReviewUrl.trim();
+    if (typeof rawLogoUrl === 'string') updates.logoUrl = rawLogoUrl.trim();
+    if (typeof rawLimit === 'number' && rawLimit > 0) updates.dailyGenerationLimit = Math.min(5000, Math.round(rawLimit));
+    if (typeof rawPlanName === 'string' && rawPlanName.trim()) updates.planName = rawPlanName.trim();
+    if (['monthly', 'quarterly', 'yearly', 'one-time'].includes(rawBillingCycle)) updates.billingCycle = rawBillingCycle;
+    if (typeof rawAmountPaid === 'number') updates.amountPaid = Math.max(0, rawAmountPaid);
+    if (typeof rawCurrency === 'string' && rawCurrency.trim()) updates.currency = rawCurrency.trim().toUpperCase();
+    if (typeof rawNextRenewalDate === 'string' && rawNextRenewalDate.trim()) updates.nextRenewalDate = rawNextRenewalDate.trim();
+    if (typeof rawAdminNotes === 'string') updates.adminNotes = rawAdminNotes.trim();
+    if (['active', 'disabled'].includes(rawStatus)) updates.status = rawStatus;
+
+    await bizRef.update(updates);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Business profile successfully updated by administrator.',
+      businessId,
+      updates,
+    });
+  } catch (error: any) {
+    console.error('Error in /api/admin-update-business:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to update business profile.',
+      details: error?.message || String(error),
+    });
+  }
+});
+
+// Admin: Regenerate password setup / reset link
+app.post('/api/admin-reset-password', async (req: Request, res: Response) => {
+  try {
+    const adminEmails = (process.env.ADMIN_EMAILS || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+
+    const authHeader = req.headers.authorization;
+    let idToken = '';
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      idToken = authHeader.substring(7).trim();
+    } else if (req.body && req.body.idToken) {
+      idToken = req.body.idToken;
+    }
+
+    if (!idToken) {
+      return res.status(401).json({ success: false, error: 'Unauthorized: Admin token required.' });
+    }
+
+    const adminAuth = getAdminAuth();
+    const adminDb = getAdminFirestore();
+
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const isCallerAdmin = decodedToken.admin === true || adminEmails.includes(decodedToken.email?.toLowerCase() || '');
+    if (!isCallerAdmin) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Admin privileges required.' });
+    }
+
+    const { businessId: rawBizId, email: rawEmail } = req.body || {};
+    const businessId = typeof rawBizId === 'string' ? rawBizId.trim() : '';
+    const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : '';
+
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Target owner email is required.' });
+    }
+
+    let passwordResetLink = '';
+    try {
+      passwordResetLink = await adminAuth.generatePasswordResetLink(email);
+    } catch (linkErr: any) {
+      passwordResetLink = `${process.env.APP_URL || 'http://localhost:3000'}/forgot-password?email=${encodeURIComponent(email)}`;
+    }
+
+    const nowIso = new Date().toISOString();
+
+    if (businessId) {
+      try {
+        await adminDb.collection('businesses').doc(businessId).update({
+          lastCredentialResetAt: nowIso,
+          updatedAt: nowIso,
+        });
+      } catch (dbErr) {
+        console.warn('Could not update lastCredentialResetAt on business doc:', dbErr);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'New password-set link generated successfully.',
+      passwordResetLink,
+      lastCredentialResetAt: nowIso,
+    });
+  } catch (error: any) {
+    console.error('Error in /api/admin-reset-password:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to generate credential reset link.',
+      details: error?.message || String(error),
+    });
+  }
+});
+
+// Admin: Deprovision and delete a business and associated records
+app.post('/api/admin-delete-business', async (req: Request, res: Response) => {
+  try {
+    const adminEmails = (process.env.ADMIN_EMAILS || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+
+    const authHeader = req.headers.authorization;
+    let idToken = '';
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      idToken = authHeader.substring(7).trim();
+    } else if (req.body && req.body.idToken) {
+      idToken = req.body.idToken;
+    }
+
+    if (!idToken) {
+      return res.status(401).json({ success: false, error: 'Unauthorized: Admin token required.' });
+    }
+
+    const adminAuth = getAdminAuth();
+    const adminDb = getAdminFirestore();
+
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const isCallerAdmin = decodedToken.admin === true || adminEmails.includes(decodedToken.email?.toLowerCase() || '');
+    if (!isCallerAdmin) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Admin privileges required.' });
+    }
+
+    const { businessId: rawBizId, confirmBusinessName: rawConfirmName } = req.body || {};
+    const businessId = typeof rawBizId === 'string' ? rawBizId.trim() : '';
+
+    if (!businessId) {
+      return res.status(400).json({ success: false, error: 'Business ID is required.' });
+    }
+
+    const bizDocRef = adminDb.collection('businesses').doc(businessId);
+    const bizSnap = await bizDocRef.get();
+
+    if (!bizSnap.exists) {
+      return res.status(404).json({ success: false, error: 'Business account not found.' });
+    }
+
+    const bizData = bizSnap.data() || {};
+    const ownerId = bizData.ownerId;
+    const businessName = bizData.name || '';
+
+    if (typeof rawConfirmName === 'string' && rawConfirmName.trim().toLowerCase() !== businessName.trim().toLowerCase()) {
+      return res.status(400).json({
+        success: false,
+        error: `Confirmation failed: Typed name "${rawConfirmName}" did not match "${businessName}".`,
+      });
+    }
+
+    // Cascade delete QR codes
+    try {
+      const qrSnap = await adminDb.collection('qrCodes').where('businessId', '==', businessId).get();
+      const qrBatch = adminDb.batch();
+      qrSnap.forEach((doc) => qrBatch.delete(doc.ref));
+      if (!qrSnap.empty) await qrBatch.commit();
+    } catch (e) {
+      console.warn('Could not cascade-delete qrCodes:', e);
+    }
+
+    // Cascade delete feedback
+    try {
+      const fbSnap = await adminDb.collection('feedback').where('businessId', '==', businessId).get();
+      const fbBatch = adminDb.batch();
+      fbSnap.forEach((doc) => fbBatch.delete(doc.ref));
+      if (!fbSnap.empty) await fbBatch.commit();
+    } catch (e) {
+      console.warn('Could not cascade-delete feedback:', e);
+    }
+
+    // Cascade delete review clicks
+    try {
+      const clicksSnap = await adminDb.collection('reviewClicks').where('businessId', '==', businessId).get();
+      const clicksBatch = adminDb.batch();
+      clicksSnap.forEach((doc) => clicksBatch.delete(doc.ref));
+      if (!clicksSnap.empty) await clicksBatch.commit();
+    } catch (e) {
+      console.warn('Could not cascade-delete reviewClicks:', e);
+    }
+
+    // Delete business document
+    await bizDocRef.delete();
+
+    // Delete user profile and auth account
+    if (ownerId && typeof ownerId === 'string') {
+      try {
+        await adminDb.collection('users').doc(ownerId).delete();
+      } catch (e) {
+        console.warn('Could not delete user doc:', e);
+      }
+
+      try {
+        await adminAuth.deleteUser(ownerId);
+      } catch (e) {
+        console.warn('Could not delete auth user:', e);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Business "${businessName}" (${businessId}) and all linked records permanently deleted.`,
+      businessId,
+    });
+  } catch (error: any) {
+    console.error('Error in /api/admin-delete-business:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to delete business.',
+      details: error?.message || String(error),
+    });
+  }
+});
+
+// Admin: Get daily usage metrics across businesses
+app.get('/api/admin-get-usage', async (req: Request, res: Response) => {
+  try {
+    const adminEmails = (process.env.ADMIN_EMAILS || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+
+    const authHeader = req.headers.authorization;
+    let idToken = '';
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      idToken = authHeader.substring(7).trim();
+    } else if (req.query.idToken) {
+      idToken = req.query.idToken as string;
+    }
+
+    if (!idToken) {
+      return res.status(401).json({ success: false, error: 'Unauthorized: Admin token required.' });
+    }
+
+    const adminAuth = getAdminAuth();
+    const adminDb = getAdminFirestore();
+
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const isCallerAdmin = decodedToken.admin === true || adminEmails.includes(decodedToken.email?.toLowerCase() || '');
+    if (!isCallerAdmin) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Admin privileges required.' });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const usageSnap = await adminDb.collection('dailyUsage').where('date', '==', today).get();
+
+    const usageByBusiness: Record<string, number> = {};
+    usageSnap.forEach((doc) => {
+      const data = doc.data();
+      if (data.businessId && typeof data.count === 'number') {
+        usageByBusiness[data.businessId] = data.count;
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      date: today,
+      usage: usageByBusiness,
+    });
+  } catch (error: any) {
+    console.error('Error in /api/admin-get-usage:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get usage stats.',
+      details: error?.message || String(error),
+    });
+  }
+});
+
+
+// Feedback Submission with Rate Limiting & Honeypot Protection
+app.post('/api/submit-feedback', async (req: Request, res: Response) => {
+  try {
+    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+
+    if (!checkIpRateLimit(clientIp, 10)) {
+      return res.status(429).json({
+        success: false,
+        error: 'Too many feedback submissions. Please wait a minute before trying again.',
+      });
+    }
+
+    const {
+      businessId: rawBizId,
+      qrId: rawQrId,
+      qrLocationName: rawQrLoc,
+      rating: rawRating,
+      selectedCategories: rawSelectedCategories,
+      customerComment: rawComment,
+      privateFeedback: rawPrivateFeedback,
+      customerName: rawCustomerName,
+      isAnonymous: rawIsAnonymous,
+      website_hp: honeypot,
+    } = req.body || {};
+
+    if (honeypot && typeof honeypot === 'string' && honeypot.trim().length > 0) {
+      console.warn(`[Abuse Protection] Spam bot trapped via honeypot from IP: ${clientIp}`);
+      return res.status(200).json({
+        success: true,
+        feedback: {
+          id: `fb_bot_${Date.now()}`,
+          businessId: rawBizId,
+          rating: rawRating || 5,
+          createdAt: new Date().toISOString(),
+        },
+      });
+    }
+
+    const businessId = sanitizeInputString(rawBizId, 100);
+    const rating = typeof rawRating === 'number' ? Math.max(1, Math.min(5, Math.round(rawRating))) : null;
+
+    if (!businessId || rating === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameters: businessId and numeric rating (1-5) are required.',
+      });
+    }
+
+    const adminDb = getAdminFirestore();
+
+    const bizDoc = await adminDb.collection('businesses').doc(businessId).get();
+    if (!bizDoc.exists) {
+      return res.status(400).json({
+        success: false,
+        error: 'Target business profile not found.',
+      });
+    }
+
+    const bizData = bizDoc.data();
+    if (bizData?.status === 'disabled') {
+      return res.status(403).json({
+        success: false,
+        error: 'Business account is currently inactive.',
+      });
+    }
+
+    const selectedCategories: string[] = Array.isArray(rawSelectedCategories)
+      ? rawSelectedCategories
+          .map((c) => sanitizeInputString(c, 50))
+          .filter((c) => c.length > 0)
+          .slice(0, 15)
+      : [];
+
+    const qrId = sanitizeInputString(rawQrId, 100) || undefined;
+    const qrLocationName = sanitizeInputString(rawQrLoc, 100) || undefined;
+    const customerComment = sanitizeInputString(rawComment, 1000) || undefined;
+    const privateFeedback = sanitizeInputString(rawPrivateFeedback, 1000) || undefined;
+    const isAnonymous = Boolean(rawIsAnonymous);
+    const customerName = isAnonymous ? undefined : sanitizeInputString(rawCustomerName, 100) || undefined;
+
+    const feedbackDocRef = adminDb.collection('feedback').doc();
+    const feedbackId = feedbackDocRef.id;
+    const nowIso = new Date().toISOString();
+
+    const newFeedback: Record<string, any> = {
+      id: feedbackId,
+      businessId,
+      rating,
+      selectedCategories,
+      isAnonymous,
+      createdAt: nowIso,
+    };
+
+    if (qrId) newFeedback.qrId = qrId;
+    if (qrLocationName) newFeedback.qrLocationName = qrLocationName;
+    if (customerComment) newFeedback.customerComment = customerComment;
+    if (privateFeedback) newFeedback.privateFeedback = privateFeedback;
+    if (customerName) newFeedback.customerName = customerName;
+
+    await feedbackDocRef.set(newFeedback);
+
+    if (qrId) {
+      try {
+        const qrRef = adminDb.collection('qrCodes').doc(qrId);
+        const qrSnap = await qrRef.get();
+        if (qrSnap.exists) {
+          const currentCount = qrSnap.data()?.feedbackCount || 0;
+          await qrRef.update({
+            feedbackCount: currentCount + 1,
+            lastScannedAt: nowIso,
+          });
+        }
+      } catch (qrErr) {
+        console.warn('Could not increment QR feedbackCount:', qrErr);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      feedback: newFeedback,
+    });
+  } catch (error: any) {
+    console.error('Error submitting customer feedback in server.ts:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'An error occurred while submitting feedback.',
+      details: error?.message || String(error),
+    });
+  }
+});
+
 // 2. AI Review Drafts Generation Endpoint
 app.post('/api/generate-reviews', async (req: Request, res: Response) => {
   try {
@@ -476,6 +985,14 @@ app.post('/api/generate-reviews', async (req: Request, res: Response) => {
     const customerComment = sanitizeInputString(rawComment, 800);
     const customerName = sanitizeInputString(rawCustomerName, 80);
 
+    const cleanBizId = sanitizeInputString(businessId, 60);
+    if (!cleanBizId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameter: businessId is required.',
+      });
+    }
+
     if (!businessName || rating === null) {
       return res.status(400).json({
         success: false,
@@ -492,7 +1009,6 @@ app.post('/api/generate-reviews', async (req: Request, res: Response) => {
       : [];
 
     // Check usage limit per business
-    const cleanBizId = sanitizeInputString(businessId, 60) || 'default';
     const usage = checkAndIncrementUsage(cleanBizId);
     if (!usage.allowed) {
       return res.status(429).json({
@@ -633,9 +1149,17 @@ app.post('/api/business-insights', async (req: Request, res: Response) => {
       return res.status(429).json({ success: false, error: 'Too many business insights requests. Please wait a minute before trying again.' });
     }
 
-    const { businessName: rawBizName, category: rawCat, feedbacksSummary } = req.body;
+    const { businessId: rawBizId, businessName: rawBizName, category: rawCat, feedbacksSummary } = req.body;
+    const businessId = sanitizeInputString(rawBizId, 60);
     const businessName = sanitizeInputString(rawBizName, 100);
     const category = sanitizeInputString(rawCat, 60);
+
+    if (!businessId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameter: businessId is required.',
+      });
+    }
 
     if (!feedbacksSummary || !feedbacksSummary.total || feedbacksSummary.total < 3) {
       return res.json({
@@ -862,13 +1386,8 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', async () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
-    try {
-      await ensureAdminUserAccount('admin@reviewai.com', 'admin123@nimish', 'Super Admin');
-    } catch (e) {
-      console.warn('Initial admin provisioning note:', e);
-    }
   });
 }
 

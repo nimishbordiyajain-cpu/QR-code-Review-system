@@ -23,13 +23,7 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return isAuthenticated() && (
-        request.auth.token.admin == true ||
-        (request.auth.token.email is string && (
-          request.auth.token.email == 'admin@authenticreviews.com' ||
-          request.auth.token.email == 'nimishbordiyajain@gmail.com'
-        ))
-      );
+      return isAuthenticated() && request.auth.token.admin == true;
     }
     
     function isBusinessOwner(bizId) {
@@ -49,13 +43,12 @@ service cloud.firestore {
       );
     }
     
-    // Strict schema & field boundary validator for BusinessProfile
-    function isValidBusinessProfile(data) {
+    // Strict schema & field boundary validator for Owner-initiated BusinessProfile updates
+    function isValidOwnerBusinessProfile(data) {
       return data.keys().hasOnly([
         'id', 'ownerId', 'name', 'ownerName', 'email', 'phone', 
         'category', 'address', 'description', 'logoUrl', 
-        'googleReviewUrl', 'slug', 'status', 'dailyGenerationLimit',
-        'customCategories', 'createdAt', 'updatedAt'
+        'googleReviewUrl', 'slug', 'customCategories', 'createdAt', 'updatedAt'
       ])
       && data.ownerId is string && data.ownerId == request.auth.uid
       && data.name is string && data.name.size() > 0 && data.name.size() <= 150
@@ -68,8 +61,6 @@ service cloud.firestore {
       && (!('address' in data) || (data.address is string && data.address.size() <= 500))
       && (!('description' in data) || (data.description is string && data.description.size() <= 2000))
       && (!('logoUrl' in data) || (data.logoUrl is string && data.logoUrl.size() <= 1000))
-      && (!('status' in data) || (data.status in ['active', 'disabled']))
-      && (!('dailyGenerationLimit' in data) || (data.dailyGenerationLimit is number && data.dailyGenerationLimit > 0 && data.dailyGenerationLimit <= 5000))
       && (!('customCategories' in data) || (data.customCategories is list && data.customCategories.size() <= 30));
     }
     
@@ -85,14 +76,17 @@ service cloud.firestore {
     match /businesses/{businessId} {
       // Publicly readable for customer QR scan flow & business resolution
       allow read: if true;
-      allow create: if isAuthenticated() 
-        && isValidBusinessProfile(request.resource.data)
-        && request.resource.data.status == 'active';
+      allow create: if isAuthenticated() && (
+        isAdmin() || (
+          isValidOwnerBusinessProfile(request.resource.data)
+          && request.resource.data.status == 'active'
+        )
+      );
       allow update: if isAuthenticated() && (
         isAdmin() || (
           resource.data.ownerId == request.auth.uid 
           && request.resource.data.ownerId == request.auth.uid
-          && isValidBusinessProfile(request.resource.data)
+          && isValidOwnerBusinessProfile(request.resource.data)
         )
       );
       allow delete: if isAuthenticated() && (isAdmin() || resource.data.ownerId == request.auth.uid);

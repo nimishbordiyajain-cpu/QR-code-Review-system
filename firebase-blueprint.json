@@ -1,0 +1,109 @@
+{
+  "entities": {
+    "BusinessProfile": {
+      "title": "BusinessProfile",
+      "description": "Represents a business profile managed on ReviewFlow AI",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 150 },
+        "ownerName": { "type": "string", "maxLength": 150 },
+        "ownerPhone": { "type": "string", "maxLength": 50 },
+        "email": { "type": "string", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 50 },
+        "category": { "type": "string", "maxLength": 50 },
+        "address": { "type": "string", "maxLength": 500 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "logoUrl": { "type": "string", "maxLength": 1000 },
+        "googleReviewUrl": { "type": "string", "maxLength": 500 },
+        "slug": { "type": "string", "maxLength": 200 },
+        "status": { "type": "string", "enum": ["active", "disabled"] },
+        "dailyGenerationLimit": { "type": "number" },
+        "planName": { "type": "string", "maxLength": 100 },
+        "billingCycle": { "type": "string", "enum": ["monthly", "quarterly", "yearly", "one-time"] },
+        "amountPaid": { "type": "number" },
+        "currency": { "type": "string", "maxLength": 10 },
+        "nextRenewalDate": { "type": "string", "maxLength": 50 },
+        "adminNotes": { "type": "string", "maxLength": 5000 },
+        "provisionedAt": { "type": "string", "maxLength": 50 },
+        "lastCredentialResetAt": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "ownerId", "name", "slug", "status", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account information linked to Firebase Auth UID",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 150 },
+        "displayName": { "type": "string", "maxLength": 150 },
+        "role": { "type": "string", "enum": ["owner", "admin"] },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "updatedAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["uid", "email", "role", "createdAt"]
+    },
+    "QRCodeItem": {
+      "title": "QRCodeItem",
+      "description": "Physical QR placement context point for a business",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "businessSlug": { "type": "string", "maxLength": 200 },
+        "name": { "type": "string", "maxLength": 150 },
+        "location": { "type": "string", "maxLength": 150 },
+        "slug": { "type": "string", "maxLength": 200 },
+        "active": { "type": "boolean" },
+        "scanCount": { "type": "number" },
+        "feedbackCount": { "type": "number" },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "businessId", "name", "slug", "active", "createdAt"]
+    },
+    "CustomerFeedback": {
+      "title": "CustomerFeedback",
+      "description": "Customer rating, sentiment tags, and private or public review draft",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "businessId": { "type": "string", "maxLength": 128 },
+        "qrId": { "type": "string", "maxLength": 128 },
+        "qrLocationName": { "type": "string", "maxLength": 150 },
+        "rating": { "type": "number" },
+        "selectedCategories": { "type": "array" },
+        "customerComment": { "type": "string", "maxLength": 1000 },
+        "privateFeedback": { "type": "string", "maxLength": 1000 },
+        "customerName": { "type": "string", "maxLength": 150 },
+        "isAnonymous": { "type": "boolean" },
+        "selectedDraft": { "type": "string", "maxLength": 2000 },
+        "googleReviewClicked": { "type": "boolean" },
+        "googleReviewClickedAt": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["id", "businessId", "rating", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/businesses/{businessId}": {
+      "schema": "BusinessProfile",
+      "description": "Registered business accounts"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles"
+    },
+    "/qrCodes/{qrId}": {
+      "schema": "QRCodeItem",
+      "description": "Physical QR placement configurations"
+    },
+    "/feedback/{feedbackId}": {
+      "schema": "CustomerFeedback",
+      "description": "Customer review and feedback submissions"
+    }
+  }
+}

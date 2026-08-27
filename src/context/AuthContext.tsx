@@ -13,12 +13,6 @@ import { BusinessProfile, BusinessUser } from '../types';
 import { getBusinessByOwnerId } from '../services/businessService';
 import { sanitizeForFirestore } from '../utils/firestoreSanitizer';
 
-const KNOWN_ADMIN_EMAILS = [
-  'admin@reviewai.com',
-  'admin@authenticreviews.com',
-  'nimishbordiyajain@gmail.com',
-];
-
 interface AuthContextType {
   currentUser: FirebaseUser | null;
   userProfile: BusinessUser | null;
@@ -54,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!auth.currentUser) return false;
     try {
       const idToken = await auth.currentUser.getIdToken(true);
-      // Attempt server sync
+      // Attempt server sync of custom claims
       try {
         await fetch('/api/sync-claims', {
           method: 'POST',
@@ -70,12 +64,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const tokenResult = await auth.currentUser.getIdTokenResult(true);
       const isClaimAdmin = Boolean(tokenResult.claims.admin);
-      const isEmailAdmin = auth.currentUser.email
-        ? KNOWN_ADMIN_EMAILS.includes(auth.currentUser.email.toLowerCase())
-        : false;
-      const finalAdmin = isClaimAdmin || isEmailAdmin;
-      setIsAdmin(finalAdmin);
-      return finalAdmin;
+      setIsAdmin(isClaimAdmin);
+      return isClaimAdmin;
     } catch (err) {
       console.warn('Error refreshing token claims:', err);
       return false;
@@ -101,12 +91,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // 1. Check custom claims for admin authorization
           const tokenResult = await user.getIdTokenResult();
           let isUserAdmin = Boolean(tokenResult.claims.admin);
-          const isEmailAdmin = user.email
-            ? KNOWN_ADMIN_EMAILS.includes(user.email.toLowerCase())
-            : false;
 
-          // If user email matches admin list but claim not yet propagated, sync with server
-          if (isEmailAdmin && !isUserAdmin) {
+          // If claims not yet set, attempt claim synchronization with serverless endpoint
+          if (!isUserAdmin) {
             try {
               const idToken = await user.getIdToken();
               const syncRes = await fetch('/api/sync-claims', {
@@ -126,32 +113,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
-          const resolvedIsAdmin = isUserAdmin || isEmailAdmin;
-          setIsAdmin(resolvedIsAdmin);
+          setIsAdmin(isUserAdmin);
 
           // 2. Fetch or initialize user profile in Firestore
-          // Note: All user documents are stored with role: 'owner' to prevent client-side privilege escalation
           const userDocRef = doc(db, 'users', user.uid);
           const userSnap = await getDoc(userDocRef);
           if (userSnap.exists()) {
             const data = userSnap.data() as BusinessUser;
             setUserProfile({
               ...data,
-              role: resolvedIsAdmin ? 'admin' : 'owner',
+              role: isUserAdmin ? 'admin' : 'owner',
             });
           } else {
             const newProfile: BusinessUser = {
               uid: user.uid,
               email: user.email || '',
               displayName: user.displayName || '',
-              role: 'owner',
+              role: isUserAdmin ? 'admin' : 'owner',
               createdAt: new Date().toISOString(),
             };
             await setDoc(userDocRef, sanitizeForFirestore(newProfile));
-            setUserProfile({
-              ...newProfile,
-              role: resolvedIsAdmin ? 'admin' : 'owner',
-            });
+            setUserProfile(newProfile);
           }
 
           // 3. Fetch associated business profile
@@ -173,34 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, pass: string) => {
     const cleanEmail = email.trim().toLowerCase();
-    try {
-      await signInWithEmailAndPassword(auth, cleanEmail, pass);
-    } catch (err: any) {
-      const code = err?.code || '';
-      const errMsg = err?.message || '';
-
-      // If user account is not yet created in this Firebase project (or first-time admin setup)
-      const isKnownAdmin = KNOWN_ADMIN_EMAILS.includes(cleanEmail);
-      if (
-        isKnownAdmin ||
-        code === 'auth/user-not-found' ||
-        code === 'auth/invalid-credential' ||
-        errMsg.includes('auth/invalid-credential')
-      ) {
-        try {
-          // Attempt automatic initial provision
-          await createUserWithEmailAndPassword(auth, cleanEmail, pass);
-          return;
-        } catch (createErr: any) {
-          // If email is already in use, then the password entered for sign-in was genuinely wrong
-          if (createErr?.code === 'auth/email-already-in-use') {
-            throw err;
-          }
-          throw createErr;
-        }
-      }
-      throw err;
-    }
+    await signInWithEmailAndPassword(auth, cleanEmail, pass);
   };
 
   const logout = async () => {
