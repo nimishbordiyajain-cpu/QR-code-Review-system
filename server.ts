@@ -824,6 +824,239 @@ app.get('/api/admin-get-usage', async (req: Request, res: Response) => {
   }
 });
 
+// Prospective Client Enquiry Submission with Rate Limiting & Honeypot Protection
+app.post('/api/submit-enquiry', async (req: Request, res: Response) => {
+  try {
+    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+
+    // Stricter rate limiting for enquiries (5 submissions per 10 minutes per IP)
+    if (!checkIpRateLimit(clientIp, 5, 10 * 60 * 1000)) {
+      return res.status(429).json({
+        success: false,
+        error: 'Too many enquiry submissions from your network. Please wait a few minutes before trying again.',
+      });
+    }
+
+    const {
+      name: rawName,
+      businessName: rawBizName,
+      category: rawCategory,
+      email: rawEmail,
+      phone: rawPhone,
+      city: rawCity,
+      message: rawMessage,
+      source: rawSource,
+      website_hp: honeypot,
+    } = req.body || {};
+
+    if (honeypot && typeof honeypot === 'string' && honeypot.trim().length > 0) {
+      console.warn(`[Abuse Protection] Enquiry spam bot trapped via honeypot from IP: ${clientIp}`);
+      return res.status(200).json({
+        success: true,
+        enquiryId: `enq_bot_${Date.now()}`,
+        message: 'Thank you! Your enquiry has been received. Our team will contact you shortly.',
+      });
+    }
+
+    const name = sanitizeInputString(rawName, 120);
+    const businessName = sanitizeInputString(rawBizName, 150);
+    const category = sanitizeInputString(rawCategory, 60) || 'Other';
+    const email = sanitizeInputString(rawEmail, 150).toLowerCase();
+    const phone = sanitizeInputString(rawPhone, 50);
+    const city = sanitizeInputString(rawCity, 100) || undefined;
+    const message = sanitizeInputString(rawMessage, 2000) || undefined;
+    const source = sanitizeInputString(rawSource, 100) || undefined;
+
+    if (!name) {
+      return res.status(400).json({ success: false, error: 'Full name is required.' });
+    }
+    if (!businessName) {
+      return res.status(400).json({ success: false, error: 'Business name is required.' });
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, error: 'A valid email address is required.' });
+    }
+    if (!phone) {
+      return res.status(400).json({ success: false, error: 'Contact phone number is required.' });
+    }
+
+    const adminDb = getAdminFirestore();
+    const enquiryDocRef = adminDb.collection('enquiries').doc();
+    const enquiryId = enquiryDocRef.id;
+    const nowIso = new Date().toISOString();
+
+    const enquiryRecord: Record<string, any> = {
+      id: enquiryId,
+      name,
+      businessName,
+      category,
+      email,
+      phone,
+      status: 'new',
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    if (city) enquiryRecord.city = city;
+    if (message) enquiryRecord.message = message;
+    if (source) enquiryRecord.source = source;
+
+    await enquiryDocRef.set(enquiryRecord);
+
+    return res.status(200).json({
+      success: true,
+      enquiryId,
+      message: 'Thank you for your interest! Your enquiry has been received and our team will get in touch shortly.',
+    });
+  } catch (error: any) {
+    console.error('Error in /api/submit-enquiry:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'An error occurred while submitting your enquiry. Please try again.',
+      details: error?.message || String(error),
+    });
+  }
+});
+
+// Admin: Get All Client Enquiries
+app.all('/api/admin-get-enquiries', async (req: Request, res: Response) => {
+  try {
+    const adminEmails = (process.env.ADMIN_EMAILS || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+
+    const authHeader = req.headers.authorization;
+    let idToken = '';
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      idToken = authHeader.substring(7).trim();
+    } else if (req.query?.idToken) {
+      idToken = req.query.idToken as string;
+    } else if (req.body?.idToken) {
+      idToken = req.body.idToken;
+    }
+
+    if (!idToken) {
+      return res.status(401).json({ success: false, error: 'Unauthorized: Admin token required.' });
+    }
+
+    const adminAuth = getAdminAuth();
+    const adminDb = getAdminFirestore();
+
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const isCallerAdmin = decodedToken.admin === true || adminEmails.includes(decodedToken.email?.toLowerCase() || '');
+    if (!isCallerAdmin) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Admin privileges required.' });
+    }
+
+    const snapshot = await adminDb.collection('enquiries').orderBy('createdAt', 'desc').get();
+    const enquiries: any[] = [];
+    snapshot.forEach((doc) => {
+      enquiries.push({
+        id: doc.id,
+        ...doc.data(),
+      });
+    });
+
+    return res.status(200).json({
+      success: true,
+      enquiries,
+    });
+  } catch (error: any) {
+    console.error('Error in /api/admin-get-enquiries:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to fetch enquiries.',
+      details: error?.message || String(error),
+    });
+  }
+});
+
+// Admin: Update Enquiry Status / Notes
+app.post('/api/admin-update-enquiry', async (req: Request, res: Response) => {
+  try {
+    const adminEmails = (process.env.ADMIN_EMAILS || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+
+    const authHeader = req.headers.authorization;
+    let idToken = '';
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      idToken = authHeader.substring(7).trim();
+    } else if (req.body?.idToken) {
+      idToken = req.body.idToken;
+    }
+
+    if (!idToken) {
+      return res.status(401).json({ success: false, error: 'Unauthorized: Admin token required.' });
+    }
+
+    const adminAuth = getAdminAuth();
+    const adminDb = getAdminFirestore();
+
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const isCallerAdmin = decodedToken.admin === true || adminEmails.includes(decodedToken.email?.toLowerCase() || '');
+    if (!isCallerAdmin) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Admin privileges required.' });
+    }
+
+    const {
+      enquiryId: rawEnquiryId,
+      status: rawStatus,
+      adminNotes: rawAdminNotes,
+      convertedBusinessId: rawConvertedBizId,
+    } = req.body || {};
+
+    const enquiryId = typeof rawEnquiryId === 'string' ? rawEnquiryId.trim() : '';
+    if (!enquiryId) {
+      return res.status(400).json({ success: false, error: 'Enquiry ID is required.' });
+    }
+
+    const docRef = adminDb.collection('enquiries').doc(enquiryId);
+    const snap = await docRef.get();
+    if (!snap.exists) {
+      return res.status(404).json({ success: false, error: 'Enquiry record not found.' });
+    }
+
+    const updates: Record<string, any> = {
+      updatedAt: new Date().toISOString(),
+    };
+
+    const validStatuses = ['new', 'contacted', 'converted', 'archived'];
+    if (typeof rawStatus === 'string' && validStatuses.includes(rawStatus)) {
+      updates.status = rawStatus;
+    }
+
+    if (typeof rawAdminNotes === 'string') {
+      updates.adminNotes = rawAdminNotes.trim();
+    }
+
+    if (typeof rawConvertedBizId === 'string') {
+      updates.convertedBusinessId = rawConvertedBizId.trim();
+      if (!updates.status) {
+        updates.status = 'converted';
+      }
+    }
+
+    await docRef.update(updates);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Enquiry updated successfully.',
+      enquiryId,
+      updates,
+    });
+  } catch (error: any) {
+    console.error('Error in /api/admin-update-enquiry:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to update enquiry.',
+      details: error?.message || String(error),
+    });
+  }
+});
+
 
 // Feedback Submission with Rate Limiting & Honeypot Protection
 app.post('/api/submit-feedback', async (req: Request, res: Response) => {

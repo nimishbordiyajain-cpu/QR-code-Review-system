@@ -3,9 +3,21 @@ import { X, Building2, User, CreditCard, ShieldCheck, AlertCircle, Loader2 } fro
 import { BusinessCategory, BusinessProfile } from '../../types';
 import { adminCreateBusiness } from '../../services/adminService';
 
+export interface AdminCreateBusinessInitialData {
+  name?: string;
+  category?: BusinessCategory;
+  address?: string;
+  phone?: string;
+  ownerName?: string;
+  email?: string;
+  ownerPhone?: string;
+  adminNotes?: string;
+}
+
 interface AdminCreateBusinessModalProps {
   onClose: () => void;
   onSuccess: (business: BusinessProfile, passwordResetLink?: string) => void;
+  initialData?: AdminCreateBusinessInitialData;
 }
 
 const CATEGORIES: BusinessCategory[] = [
@@ -26,21 +38,22 @@ const CATEGORIES: BusinessCategory[] = [
 export const AdminCreateBusinessModal: React.FC<AdminCreateBusinessModalProps> = ({
   onClose,
   onSuccess,
+  initialData,
 }) => {
   const defaultRenewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     .toISOString()
     .split('T')[0];
 
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState<BusinessCategory>('Restaurant');
-  const [address, setAddress] = useState('');
-  const [phone, setPhone] = useState('');
+  const [name, setName] = useState(initialData?.name || '');
+  const [category, setCategory] = useState<BusinessCategory>(initialData?.category || 'Restaurant');
+  const [address, setAddress] = useState(initialData?.address || '');
+  const [phone, setPhone] = useState(initialData?.phone || '');
   const [googleReviewUrl, setGoogleReviewUrl] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
 
-  const [ownerName, setOwnerName] = useState('');
-  const [email, setEmail] = useState('');
-  const [ownerPhone, setOwnerPhone] = useState('');
+  const [ownerName, setOwnerName] = useState(initialData?.ownerName || '');
+  const [email, setEmail] = useState(initialData?.email || '');
+  const [ownerPhone, setOwnerPhone] = useState(initialData?.ownerPhone || initialData?.phone || '');
 
   const [planName, setPlanName] = useState('Standard');
   const [dailyGenerationLimit, setDailyGenerationLimit] = useState(50);
@@ -48,7 +61,7 @@ export const AdminCreateBusinessModal: React.FC<AdminCreateBusinessModalProps> =
   const [amountPaid, setAmountPaid] = useState<number>(1999);
   const [currency, setCurrency] = useState('INR');
   const [nextRenewalDate, setNextRenewalDate] = useState(defaultRenewalDate);
-  const [adminNotes, setAdminNotes] = useState('');
+  const [adminNotes, setAdminNotes] = useState(initialData?.adminNotes || '');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

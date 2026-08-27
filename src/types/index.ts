@@ -1,3 +1,22 @@
+export type EnquiryStatus = 'new' | 'contacted' | 'converted' | 'archived';
+
+export interface Enquiry {
+  id: string;
+  name: string;
+  businessName: string;
+  category: BusinessCategory | string;
+  email: string;
+  phone: string;
+  city?: string;
+  message?: string;
+  source?: string;
+  status: EnquiryStatus;
+  adminNotes?: string;
+  convertedBusinessId?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface BusinessUser {
   uid: string;
   email: string;

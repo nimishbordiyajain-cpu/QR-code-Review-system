@@ -14,6 +14,7 @@ import { AdminPage } from './pages/AdminPage';
 import { RequireAdmin } from './components/RequireAdmin';
 import { DemoPage } from './pages/DemoPage';
 import { CustomerFeedbackFlow } from './pages/CustomerFeedbackFlow';
+import { EnquiryPage } from './pages/EnquiryPage';
 import { PrivacyPolicyPage, TermsPage } from './pages/LegalPages';
 import { AlertTriangle, LogOut, Mail } from 'lucide-react';
 
@@ -43,6 +44,7 @@ function AppContent() {
     }
 
     if (path === '/login' || path === '/register' || path === '/signup') return 'login';
+    if (path === '/enquire' || path === '/enquiry') return 'enquiry';
     if (path === '/forgot-password') return 'forgot-password';
     if (path === '/onboarding') return 'onboarding';
     if (path === '/dashboard' || path === '/app') return 'dashboard';
@@ -78,6 +80,7 @@ function AppContent() {
       feedback: 'Customer Feedback & Sentiment | ReviewFlow AI',
       settings: 'Business Settings | ReviewFlow AI',
       login: 'Sign In | ReviewFlow AI',
+      enquiry: 'Request Storefront Access | ReviewFlow AI',
       'forgot-password': 'Reset Password | ReviewFlow AI',
       onboarding: 'Setup Your Business | ReviewFlow AI',
       admin: 'Admin Overview | ReviewFlow AI',
@@ -101,6 +104,7 @@ function AppContent() {
     // Update browser URL cleanly
     let targetPath = '/';
     if (targetView === 'login') targetPath = '/login';
+    else if (targetView === 'enquiry') targetPath = '/enquire';
     else if (targetView === 'forgot-password') targetPath = '/forgot-password';
     else if (targetView === 'onboarding') targetPath = '/onboarding';
     else if (targetView === 'dashboard') targetPath = '/dashboard';
@@ -244,6 +248,10 @@ function AppContent() {
 
         {currentView === 'login' && (
           <LoginPage onNavigate={navigate} onStartDemo={handleStartDemo} />
+        )}
+
+        {currentView === 'enquiry' && (
+          <EnquiryPage onNavigate={navigate} onStartDemo={handleStartDemo} />
         )}
 
         {currentView === 'forgot-password' && <ForgotPasswordPage onNavigate={navigate} />}

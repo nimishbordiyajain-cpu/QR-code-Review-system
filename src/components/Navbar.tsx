@@ -192,11 +192,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                   Sign In
                 </button>
                 <button
-                  id="nav-getstarted-btn"
-                  onClick={() => onNavigate('login')}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white hover:bg-blue-600 shadow-xs transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 flex items-center gap-1.5"
+                  id="nav-enquire-btn"
+                  onClick={() => onNavigate('enquiry')}
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-500 shadow-xs transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 flex items-center gap-1.5"
                 >
-                  <span>Start Free Trial</span>
+                  <span>Enquire to Join</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -298,10 +298,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
                 <button
                   onClick={() => {
+                    onNavigate('enquiry');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full text-center px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg shadow-xs cursor-pointer"
+                >
+                  Enquire to Join
+                </button>
+                <button
+                  onClick={() => {
                     onNavigate('login');
                     setMobileMenuOpen(false);
                   }}
-                  className="w-full text-center px-4 py-2.5 text-sm font-semibold text-white bg-slate-900 hover:bg-blue-600 rounded-lg shadow-xs cursor-pointer"
+                  className="w-full text-center px-4 py-2.5 text-sm font-semibold text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
                 >
                   Operator Sign In
                 </button>

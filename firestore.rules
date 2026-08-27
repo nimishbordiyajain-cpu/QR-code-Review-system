@@ -135,6 +135,11 @@ service cloud.firestore {
       allow write: if false;
     }
     
+    // Prospective client enquiries: managed strictly server-side by Admin SDK / serverless functions
+    match /enquiries/{enquiryId} {
+      allow read, write: if false;
+    }
+
     // Rate limit persistent store: server-side only
     match /rateLimits/{limitId} {
       allow read, write: if false;

@@ -233,6 +233,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onOpenDemo, on
             <PlayCircle className="w-4 h-4 text-blue-600" />
             <span>Launch Interactive Sandbox (No Login Needed)</span>
           </button>
+
+          <p className="text-xs text-slate-500 text-center pt-2">
+            Interested in ReviewFlow for your business?{' '}
+            <button
+              type="button"
+              onClick={() => onNavigate('enquiry')}
+              className="font-bold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+            >
+              Enquire to Join
+            </button>
+          </p>
         </div>
       </div>
     </div>

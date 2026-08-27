@@ -50,6 +50,15 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onStartDemo }) => {
               </li>
               <li>
                 <button
+                  onClick={() => onNavigate('enquiry')}
+                  className="hover:text-blue-300 transition-colors text-white font-medium cursor-pointer inline-flex items-center gap-1"
+                >
+                  <span>Enquire to Join</span>
+                  <ArrowUpRight className="w-3 h-3" />
+                </button>
+              </li>
+              <li>
+                <button
                   onClick={() => (onStartDemo ? onStartDemo() : onNavigate('demo'))}
                   className="hover:text-blue-300 transition-colors text-blue-400 font-medium cursor-pointer inline-flex items-center gap-1"
                 >

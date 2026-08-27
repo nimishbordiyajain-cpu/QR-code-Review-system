@@ -1,0 +1,112 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { getAdminFirestore } from './_lib/firebaseAdmin';
+import { checkRateLimit, getClientIp } from './_lib/rateLimiter';
+
+function sanitizeInputString(val: any, maxLength: number = 500): string {
+  if (typeof val !== 'string') return '';
+  return val
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+    .replace(/<[^>]*>?/gm, '')
+    .trim()
+    .slice(0, maxLength);
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ success: false, error: 'Method not allowed' });
+  }
+
+  // 1. IP-based rate limiting (5 enquiries per 10 minutes per IP - stricter than feedback)
+  const clientIp = getClientIp(req.headers, req.socket?.remoteAddress);
+  const rateLimit = await checkRateLimit(clientIp, 'submit-enquiry', 5, 600);
+  if (!rateLimit.allowed) {
+    return res.status(429).json({
+      success: false,
+      error: 'Too many enquiry requests from your network. Please wait a few minutes before trying again.',
+      retryAfterSeconds: rateLimit.resetInSeconds,
+    });
+  }
+
+  try {
+    const {
+      name: rawName,
+      businessName: rawBizName,
+      category: rawCategory,
+      email: rawEmail,
+      phone: rawPhone,
+      city: rawCity,
+      message: rawMessage,
+      source: rawSource,
+      website_hp: honeypot, // Bot honeypot field
+    } = req.body || {};
+
+    // 2. Honeypot check: If filled by automated bot, silently return fake success
+    if (honeypot && typeof honeypot === 'string' && honeypot.trim().length > 0) {
+      console.warn(`[Abuse Protection] Enquiry spam bot trapped via honeypot from IP: ${clientIp}`);
+      return res.status(200).json({
+        success: true,
+        enquiryId: `enq_bot_${Date.now()}`,
+        message: 'Thank you! Your enquiry has been received. Our team will contact you shortly.',
+      });
+    }
+
+    // 3. Sanitization & Validation
+    const name = sanitizeInputString(rawName, 120);
+    const businessName = sanitizeInputString(rawBizName, 150);
+    const category = sanitizeInputString(rawCategory, 60) || 'Other';
+    const email = sanitizeInputString(rawEmail, 150).toLowerCase();
+    const phone = sanitizeInputString(rawPhone, 50);
+    const city = sanitizeInputString(rawCity, 100) || undefined;
+    const message = sanitizeInputString(rawMessage, 2000) || undefined;
+    const source = sanitizeInputString(rawSource, 100) || undefined;
+
+    if (!name) {
+      return res.status(400).json({ success: false, error: 'Full name is required.' });
+    }
+    if (!businessName) {
+      return res.status(400).json({ success: false, error: 'Business name is required.' });
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, error: 'A valid email address is required.' });
+    }
+    if (!phone) {
+      return res.status(400).json({ success: false, error: 'Contact phone number is required.' });
+    }
+
+    const adminDb = getAdminFirestore();
+    const enquiryDocRef = adminDb.collection('enquiries').doc();
+    const enquiryId = enquiryDocRef.id;
+    const nowIso = new Date().toISOString();
+
+    const enquiryRecord: Record<string, any> = {
+      id: enquiryId,
+      name,
+      businessName,
+      category,
+      email,
+      phone,
+      status: 'new', // 'new' | 'contacted' | 'converted' | 'archived'
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+
+    if (city) enquiryRecord.city = city;
+    if (message) enquiryRecord.message = message;
+    if (source) enquiryRecord.source = source;
+
+    await enquiryDocRef.set(enquiryRecord);
+
+    return res.status(200).json({
+      success: true,
+      enquiryId,
+      message: 'Thank you for your interest! Your enquiry has been received and our team will get in touch shortly.',
+    });
+  } catch (error: any) {
+    console.error('Error submitting enquiry:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'An error occurred while submitting your enquiry. Please try again.',
+      details: error?.message || String(error),
+    });
+  }
+}

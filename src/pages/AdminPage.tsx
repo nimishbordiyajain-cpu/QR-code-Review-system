@@ -9,6 +9,9 @@ import { AdminEditBusinessModal } from '../components/admin/AdminEditBusinessMod
 import { AdminResetPasswordModal } from '../components/admin/AdminResetPasswordModal';
 import { AdminDeleteBusinessModal } from '../components/admin/AdminDeleteBusinessModal';
 import { AdminWelcomeMessageModal } from '../components/admin/AdminWelcomeMessageModal';
+import { AdminEnquiriesView } from '../components/admin/AdminEnquiriesView';
+import { adminGetEnquiries, adminUpdateEnquiry } from '../services/enquiryService';
+import { AdminCreateBusinessInitialData } from '../components/admin/AdminCreateBusinessModal';
 import {
   ShieldAlert,
   Search,
@@ -28,20 +31,24 @@ import {
   Building2,
   CreditCard,
   Plus,
+  Inbox,
 } from 'lucide-react';
 
 interface AdminPageProps {
   onNavigate?: (view: string) => void;
 }
 
+type AdminTab = 'businesses' | 'enquiries';
 type StatusFilter = 'all' | 'active' | 'disabled';
 type RenewalFilter = 'all' | 'due-soon' | 'overdue' | 'healthy';
 type SortOption = 'renewal-soonest' | 'name-asc' | 'created-newest' | 'usage-highest';
 
 export const AdminPage: React.FC<AdminPageProps> = () => {
+  const [activeTab, setActiveTab] = useState<AdminTab>('businesses');
   const [businesses, setBusinesses] = useState<BusinessProfile[]>([]);
   const [usageMap, setUsageMap] = useState<Record<string, number>>({});
   const [totalFeedbacksCount, setTotalFeedbacksCount] = useState(0);
+  const [newEnquiryCount, setNewEnquiryCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // Search, Filters & Sorting
@@ -52,6 +59,9 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
 
   // Modal States
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createModalInitialData, setCreateModalInitialData] = useState<AdminCreateBusinessInitialData | undefined>(undefined);
+  const [convertingEnquiryId, setConvertingEnquiryId] = useState<string | null>(null);
+
   const [editingBusiness, setEditingBusiness] = useState<BusinessProfile | null>(null);
   const [resettingBusiness, setResettingBusiness] = useState<BusinessProfile | null>(null);
   const [deletingBusiness, setDeletingBusiness] = useState<BusinessProfile | null>(null);
@@ -71,15 +81,17 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
   const loadAdminData = async () => {
     setLoading(true);
     try {
-      const [bizList, fbList, usageStats] = await Promise.all([
+      const [bizList, fbList, usageStats, enquiriesList] = await Promise.all([
         getAllBusinesses(),
         getAllFeedback(),
         adminGetTodayUsage(),
+        adminGetEnquiries().catch(() => []),
       ]);
 
       setBusinesses(bizList);
       setTotalFeedbacksCount(fbList.length);
       setUsageMap(usageStats);
+      setNewEnquiryCount(enquiriesList.filter((e) => e.status === 'new').length);
     } catch (err) {
       console.error('Error loading admin dashboard records:', err);
       triggerToast('Failed to sync latest records from database.');
@@ -91,6 +103,15 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
   useEffect(() => {
     loadAdminData();
   }, []);
+
+  const handleStartConversionFromEnquiry = (
+    initialData: AdminCreateBusinessInitialData,
+    enquiryId: string
+  ) => {
+    setCreateModalInitialData(initialData);
+    setConvertingEnquiryId(enquiryId);
+    setShowCreateModal(true);
+  };
 
   const handleToggleStatus = async (biz: BusinessProfile) => {
     const nextStatus = biz.status === 'active' ? 'disabled' : 'active';
@@ -246,313 +267,387 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
               </div>
             </div>
 
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setCreateModalInitialData(undefined);
+                  setConvertingEnquiryId(null);
+                  setShowCreateModal(true);
+                }}
+                className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>New Client</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Navigation */}
+          <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-800">
             <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              onClick={() => setActiveTab('businesses')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer ${
+                activeTab === 'businesses'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>New Client</span>
+              <Building2 className="w-3.5 h-3.5" />
+              <span>Client Businesses ({businesses.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('enquiries')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 cursor-pointer ${
+                activeTab === 'enquiries'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              <Inbox className="w-3.5 h-3.5" />
+              <span>Prospective Enquiries</span>
+              {newEnquiryCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-400 text-slate-900 animate-pulse">
+                  {newEnquiryCount} new
+                </span>
+              )}
             </button>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 space-y-4">
-        {/* Metric Summary Cards */}
-        <AdminSummaryCards
-          businesses={businesses}
-          totalFeedbackCount={totalFeedbacksCount}
-          loading={loading}
-          onRefresh={loadAdminData}
-          onOpenCreateModal={() => setShowCreateModal(true)}
-        />
+        {activeTab === 'enquiries' ? (
+          <AdminEnquiriesView
+            onConvertEnquiry={handleStartConversionFromEnquiry}
+          />
+        ) : (
+          <>
+            {/* Metric Summary Cards */}
+            <AdminSummaryCards
+              businesses={businesses}
+              totalFeedbackCount={totalFeedbacksCount}
+              loading={loading}
+              onRefresh={loadAdminData}
+              onOpenCreateModal={() => {
+                setCreateModalInitialData(undefined);
+                setConvertingEnquiryId(null);
+                setShowCreateModal(true);
+              }}
+            />
 
-        {/* Business Directory & Controls */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-          {/* Filter Bar */}
-          <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white">
-            {/* Search Input */}
-            <div className="relative w-full lg:w-72">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search name, owner, email, slug..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-900 focus:bg-white focus:outline-indigo-600"
-              />
-            </div>
+            {/* Business Directory & Controls */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              {/* Filter Bar */}
+              <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white">
+                {/* Search Input */}
+                <div className="relative w-full lg:w-72">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search name, owner, email, slug..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-900 focus:bg-white focus:outline-indigo-600"
+                  />
+                </div>
 
-            {/* Filter Pills & Sorters */}
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Status Filter */}
-              <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-semibold">
-                <button
-                  onClick={() => setStatusFilter('all')}
-                  className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
-                    statusFilter === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
-                  }`}
-                >
-                  All ({businesses.length})
-                </button>
-                <button
-                  onClick={() => setStatusFilter('active')}
-                  className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
-                    statusFilter === 'active' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-500'
-                  }`}
-                >
-                  Active
-                </button>
-                <button
-                  onClick={() => setStatusFilter('disabled')}
-                  className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
-                    statusFilter === 'disabled' ? 'bg-white text-rose-700 shadow-2xs' : 'text-slate-500'
-                  }`}
-                >
-                  Disabled
-                </button>
+                {/* Filter Pills & Sorters */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Status Filter */}
+                  <div className="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-semibold">
+                    <button
+                      onClick={() => setStatusFilter('all')}
+                      className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                        statusFilter === 'all' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
+                      }`}
+                    >
+                      All ({businesses.length})
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter('active')}
+                      className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                        statusFilter === 'active' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-500'
+                      }`}
+                    >
+                      Active
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter('disabled')}
+                      className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                        statusFilter === 'disabled' ? 'bg-white text-rose-700 shadow-2xs' : 'text-slate-500'
+                      }`}
+                    >
+                      Disabled
+                    </button>
+                  </div>
+
+                  {/* Renewal Filter */}
+                  <select
+                    value={renewalFilter}
+                    onChange={(e) => setRenewalFilter(e.target.value as RenewalFilter)}
+                    className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 font-semibold focus:outline-indigo-600 cursor-pointer"
+                  >
+                    <option value="all">All Renewals</option>
+                    <option value="due-soon">Due Soon (≤ 7 days)</option>
+                    <option value="overdue">Overdue Renewals</option>
+                    <option value="healthy">Healthy (&gt; 7 days)</option>
+                  </select>
+
+                  {/* Sort By */}
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortOption)}
+                    className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 font-semibold focus:outline-indigo-600 cursor-pointer"
+                  >
+                    <option value="renewal-soonest">Sort: Renewal Soonest</option>
+                    <option value="name-asc">Sort: Name (A-Z)</option>
+                    <option value="created-newest">Sort: Created Newest</option>
+                    <option value="usage-highest">Sort: AI Usage Today</option>
+                  </select>
+                </div>
               </div>
 
-              {/* Renewal Filter */}
-              <select
-                value={renewalFilter}
-                onChange={(e) => setRenewalFilter(e.target.value as RenewalFilter)}
-                className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 font-semibold focus:outline-indigo-600 cursor-pointer"
-              >
-                <option value="all">All Renewals</option>
-                <option value="due-soon">Due Soon (≤ 7 days)</option>
-                <option value="overdue">Overdue Renewals</option>
-                <option value="healthy">Healthy (&gt; 7 days)</option>
-              </select>
-
-              {/* Sort By */}
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 font-semibold focus:outline-indigo-600 cursor-pointer"
-              >
-                <option value="renewal-soonest">Sort: Renewal Soonest</option>
-                <option value="name-asc">Sort: Name (A-Z)</option>
-                <option value="created-newest">Sort: Created Newest</option>
-                <option value="usage-highest">Sort: AI Usage Today</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Table View */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 uppercase text-[9px] font-bold border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">Business Profile</th>
-                  <th className="py-3 px-4">Owner & Login Email</th>
-                  <th className="py-3 px-4">Plan & Subscription</th>
-                  <th className="py-3 px-4">Next Renewal</th>
-                  <th className="py-3 px-4">AI Usage Today</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium">
-                {filteredAndSortedBusinesses.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400">
-                      <Building2 className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                      <p className="text-xs font-semibold">No businesses match your filter criteria.</p>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredAndSortedBusinesses.map((biz) => {
-                    const todayUsage = usageMap[biz.id] || 0;
-                    const dailyLimit = biz.dailyGenerationLimit || 50;
-                    const usagePercent = Math.min(100, Math.round((todayUsage / dailyLimit) * 100));
-
-                    return (
-                      <tr key={biz.id} className="hover:bg-slate-50/70 transition-colors">
-                        {/* Business Details */}
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
-                              {biz.logoUrl ? (
-                                <img
-                                  src={biz.logoUrl}
-                                  alt=""
-                                  referrerPolicy="no-referrer"
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                biz.name.substring(0, 2).toUpperCase()
-                              )}
-                            </div>
-                            <div>
-                              <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                                <span>{biz.name}</span>
-                                <a
-                                  href={`/review/${biz.slug}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  title="Open public review page"
-                                  className="text-slate-400 hover:text-indigo-600"
-                                >
-                                  <ExternalLink className="w-3 h-3" />
-                                </a>
-                              </div>
-                              <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                                <span className="bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-medium">
-                                  {biz.category}
-                                </span>
-                                <span>•</span>
-                                <span className="font-mono text-slate-500">/review/{biz.slug}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Owner Info */}
-                        <td className="py-3 px-4 text-slate-600">
-                          <div className="font-semibold text-slate-800">{biz.ownerName || '—'}</div>
-                          <div className="text-[10px] font-mono text-slate-500">{biz.email || '—'}</div>
-                          {(biz.ownerPhone || biz.phone) && (
-                            <div className="text-[10px] text-slate-400">
-                              {biz.ownerPhone || biz.phone}
-                            </div>
-                          )}
-                        </td>
-
-                        {/* Plan & Subscription */}
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded">
-                              {biz.planName || 'Standard'}
-                            </span>
-                            <span className="text-xs font-bold text-slate-800">
-                              ₹{(biz.amountPaid ?? 1999).toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-slate-400 capitalize mt-0.5">
-                            {biz.billingCycle || 'monthly'} cycle
-                          </div>
-                        </td>
-
-                        {/* Renewal Date */}
-                        <td className="py-3 px-4">
-                          {renderRenewalBadge(biz.nextRenewalDate)}
-                        </td>
-
-                        {/* AI Usage */}
-                        <td className="py-3 px-4">
-                          <div className="w-28 space-y-1">
-                            <div className="flex items-center justify-between text-[10px]">
-                              <span className="font-bold text-slate-700">{todayUsage} / {dailyLimit}</span>
-                              <span className="text-slate-400">{usagePercent}%</span>
-                            </div>
-                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${
-                                  usagePercent > 90
-                                    ? 'bg-rose-500'
-                                    : usagePercent > 60
-                                    ? 'bg-amber-500'
-                                    : 'bg-indigo-500'
-                                }`}
-                                style={{ width: `${usagePercent}%` }}
-                              />
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Status */}
-                        <td className="py-3 px-4">
-                          <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                              biz.status === 'active'
-                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : 'bg-rose-50 text-rose-700 border border-rose-200'
-                            }`}
-                          >
-                            {biz.status}
-                          </span>
-                        </td>
-
-                        {/* Action Buttons */}
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            {/* Welcome Message Modal */}
-                            <button
-                              onClick={() => setWelcomeKitBusiness({ business: biz })}
-                              title="View & Copy Client Welcome Message"
-                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 transition-colors cursor-pointer"
-                            >
-                              <MessageSquare className="w-3.5 h-3.5" />
-                            </button>
-
-                            {/* Edit Business Profile & Plan */}
-                            <button
-                              onClick={() => setEditingBusiness(biz)}
-                              title="Edit Details & Subscription"
-                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 transition-colors cursor-pointer"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-
-                            {/* Regenerate Password Link */}
-                            <button
-                              onClick={() => setResettingBusiness(biz)}
-                              title="Regenerate Password Link"
-                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-amber-50 hover:text-amber-600 text-slate-600 transition-colors cursor-pointer"
-                            >
-                              <KeyRound className="w-3.5 h-3.5" />
-                            </button>
-
-                            {/* Toggle Active / Disabled */}
-                            <button
-                              onClick={() => handleToggleStatus(biz)}
-                              title={biz.status === 'active' ? 'Disable Account' : 'Activate Account'}
-                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                                biz.status === 'active'
-                                  ? 'bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-600'
-                                  : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                              }`}
-                            >
-                              {biz.status === 'active' ? (
-                                <XCircle className="w-3.5 h-3.5" />
-                              ) : (
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-
-                            {/* Delete Business */}
-                            <button
-                              onClick={() => setDeletingBusiness(biz)}
-                              title="Deprovision & Delete Business"
-                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-400 transition-colors cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+              {/* Table View */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-500 uppercase text-[9px] font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="py-3 px-4">Business Profile</th>
+                      <th className="py-3 px-4">Owner & Login Email</th>
+                      <th className="py-3 px-4">Plan & Subscription</th>
+                      <th className="py-3 px-4">Next Renewal</th>
+                      <th className="py-3 px-4">AI Usage Today</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {filteredAndSortedBusinesses.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-12 text-center text-slate-400">
+                          <Building2 className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                          <p className="text-xs font-semibold">No businesses match your filter criteria.</p>
                         </td>
                       </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                    ) : (
+                      filteredAndSortedBusinesses.map((biz) => {
+                        const todayUsage = usageMap[biz.id] || 0;
+                        const dailyLimit = biz.dailyGenerationLimit || 50;
+                        const usagePercent = Math.min(100, Math.round((todayUsage / dailyLimit) * 100));
+
+                        return (
+                          <tr key={biz.id} className="hover:bg-slate-50/70 transition-colors">
+                            {/* Business Details */}
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+                                  {biz.logoUrl ? (
+                                    <img
+                                      src={biz.logoUrl}
+                                      alt=""
+                                      referrerPolicy="no-referrer"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    biz.name.substring(0, 2).toUpperCase()
+                                  )}
+                                </div>
+                                <div>
+                                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                                    <span>{biz.name}</span>
+                                    <a
+                                      href={`/review/${biz.slug}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      title="Open public review page"
+                                      className="text-slate-400 hover:text-indigo-600"
+                                    >
+                                      <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                                    <span className="bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-medium">
+                                      {biz.category}
+                                    </span>
+                                    <span>•</span>
+                                    <span className="font-mono text-slate-500">/review/{biz.slug}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Owner Info */}
+                            <td className="py-3 px-4 text-slate-600">
+                              <div className="font-semibold text-slate-800">{biz.ownerName || '—'}</div>
+                              <div className="text-[10px] font-mono text-slate-500">{biz.email || '—'}</div>
+                              {(biz.ownerPhone || biz.phone) && (
+                                <div className="text-[10px] text-slate-400">
+                                  {biz.ownerPhone || biz.phone}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Plan & Subscription */}
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded">
+                                  {biz.planName || 'Standard'}
+                                </span>
+                                <span className="text-xs font-bold text-slate-800">
+                                  ₹{(biz.amountPaid ?? 1999).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-slate-400 capitalize mt-0.5">
+                                {biz.billingCycle || 'monthly'} cycle
+                              </div>
+                            </td>
+
+                            {/* Renewal Date */}
+                            <td className="py-3 px-4">
+                              {renderRenewalBadge(biz.nextRenewalDate)}
+                            </td>
+
+                            {/* AI Usage */}
+                            <td className="py-3 px-4">
+                              <div className="w-28 space-y-1">
+                                <div className="flex items-center justify-between text-[10px]">
+                                  <span className="font-bold text-slate-700">{todayUsage} / {dailyLimit}</span>
+                                  <span className="text-slate-400">{usagePercent}%</span>
+                                </div>
+                                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${
+                                      usagePercent > 90
+                                        ? 'bg-rose-500'
+                                        : usagePercent > 60
+                                        ? 'bg-amber-500'
+                                        : 'bg-indigo-500'
+                                    }`}
+                                    style={{ width: `${usagePercent}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Status */}
+                            <td className="py-3 px-4">
+                              <span
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                                  biz.status === 'active'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                }`}
+                              >
+                                {biz.status}
+                              </span>
+                            </td>
+
+                            {/* Action Buttons */}
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                {/* Welcome Message Modal */}
+                                <button
+                                  onClick={() => setWelcomeKitBusiness({ business: biz })}
+                                  title="View & Copy Client Welcome Message"
+                                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 transition-colors cursor-pointer"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                </button>
+
+                                {/* Edit Business Profile & Plan */}
+                                <button
+                                  onClick={() => setEditingBusiness(biz)}
+                                  title="Edit Details & Subscription"
+                                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 transition-colors cursor-pointer"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+
+                                {/* Regenerate Password Link */}
+                                <button
+                                  onClick={() => setResettingBusiness(biz)}
+                                  title="Regenerate Password Link"
+                                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-amber-50 hover:text-amber-600 text-slate-600 transition-colors cursor-pointer"
+                                >
+                                  <KeyRound className="w-3.5 h-3.5" />
+                                </button>
+
+                                {/* Toggle Active / Disabled */}
+                                <button
+                                  onClick={() => handleToggleStatus(biz)}
+                                  title={biz.status === 'active' ? 'Disable Account' : 'Activate Account'}
+                                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                    biz.status === 'active'
+                                      ? 'bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-600'
+                                      : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                                  }`}
+                                >
+                                  {biz.status === 'active' ? (
+                                    <XCircle className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+
+                                {/* Delete Business */}
+                                <button
+                                  onClick={() => setDeletingBusiness(biz)}
+                                  title="Deprovision & Delete Business"
+                                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-400 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Modal 1: Create Client Business */}
       {showCreateModal && (
         <AdminCreateBusinessModal
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={(createdBiz, resetLink) => {
+          initialData={createModalInitialData}
+          onClose={() => {
             setShowCreateModal(false);
+            setCreateModalInitialData(undefined);
+            setConvertingEnquiryId(null);
+          }}
+          onSuccess={async (createdBiz, resetLink) => {
+            setShowCreateModal(false);
+            setCreateModalInitialData(undefined);
+            
+            // If converting from an enquiry, mark enquiry as converted
+            if (convertingEnquiryId) {
+              try {
+                await adminUpdateEnquiry({
+                  enquiryId: convertingEnquiryId,
+                  status: 'converted',
+                  convertedBusinessId: createdBiz.id,
+                });
+                triggerToast(`Enquiry converted & Client "${createdBiz.name}" provisioned!`);
+              } catch (e) {
+                console.warn('Could not update enquiry status on conversion:', e);
+              }
+              setConvertingEnquiryId(null);
+            } else {
+              triggerToast(`Client "${createdBiz.name}" provisioned successfully!`);
+            }
+
             setBusinesses((prev) => [createdBiz, ...prev]);
             setWelcomeKitBusiness({
               business: createdBiz,
               passwordResetLink: resetLink,
             });
-            triggerToast(`Client "${createdBiz.name}" provisioned successfully!`);
+            loadAdminData();
           }}
         />
       )}

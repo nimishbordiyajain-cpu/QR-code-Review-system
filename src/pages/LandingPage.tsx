@@ -302,11 +302,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             {/* Primary Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 pt-2">
               <button
-                id="hero-get-started-btn"
-                onClick={() => onNavigate('login')}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                id="hero-enquire-btn"
+                onClick={() => onNavigate('enquiry')}
+                className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
               >
-                <span>Start Free Trial</span>
+                <span>Enquire to Join</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
@@ -316,7 +316,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 font-semibold text-sm shadow-xs transition-all flex items-center justify-center gap-2.5 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
               >
                 <Play className="w-4 h-4 text-blue-600 fill-blue-600" />
-                <span>Launch Interactive Sandbox</span>
+                <span>Interactive Sandbox</span>
+              </button>
+
+              <button
+                id="hero-login-btn"
+                onClick={() => onNavigate('login')}
+                className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Client Login</span>
               </button>
             </div>
 
@@ -1212,11 +1220,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <button
-              id="cta-get-started-btn"
-              onClick={() => onNavigate('login')}
-              className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-md transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              id="cta-enquire-btn"
+              onClick={() => onNavigate('enquiry')}
+              className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
-              Sign In to Operator Console
+              <span>Enquire for Your Business</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
             <button
               id="cta-demo-btn"
@@ -1224,6 +1233,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 font-semibold text-sm border border-slate-700 transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
               Launch Interactive Sandbox
+            </button>
+            <button
+              id="cta-login-btn"
+              onClick={() => onNavigate('login')}
+              className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-sm transition-all cursor-pointer"
+            >
+              Operator Sign In
             </button>
           </div>
         </div>
