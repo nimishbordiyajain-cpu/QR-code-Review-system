@@ -62,7 +62,7 @@ export async function submitPublicEnquiry(
  */
 export async function adminGetEnquiries(): Promise<Enquiry[]> {
   const headers = await getAdminAuthHeaders();
-  const res = await fetch('/api/admin-get-enquiries', {
+  const res = await fetch('/api/admin?action=get-enquiries', {
     method: 'GET',
     headers,
   });
@@ -82,7 +82,7 @@ export async function adminUpdateEnquiry(
   payload: AdminUpdateEnquiryPayload
 ): Promise<void> {
   const headers = await getAdminAuthHeaders();
-  const res = await fetch('/api/admin-update-enquiry', {
+  const res = await fetch('/api/admin?action=update-enquiry', {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),

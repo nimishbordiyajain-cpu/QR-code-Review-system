@@ -42,7 +42,7 @@ export async function adminCreateBusiness(
   payload: CreateBusinessAdminPayload
 ): Promise<CreateBusinessAdminResponse> {
   const headers = await getAdminAuthHeader();
-  const res = await fetch('/api/admin-create-business', {
+  const res = await fetch('/api/admin?action=create-business', {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
@@ -78,7 +78,7 @@ export interface UpdateBusinessAdminPayload {
 
 export async function adminUpdateBusiness(payload: UpdateBusinessAdminPayload): Promise<void> {
   const headers = await getAdminAuthHeader();
-  const res = await fetch('/api/admin-update-business', {
+  const res = await fetch('/api/admin?action=update-business', {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
@@ -101,7 +101,7 @@ export async function adminResetPassword(
   email: string
 ): Promise<ResetPasswordResponse> {
   const headers = await getAdminAuthHeader();
-  const res = await fetch('/api/admin-reset-password', {
+  const res = await fetch('/api/admin?action=reset-password', {
     method: 'POST',
     headers,
     body: JSON.stringify({ businessId, email }),
@@ -119,7 +119,7 @@ export async function adminDeleteBusiness(
   confirmBusinessName: string
 ): Promise<void> {
   const headers = await getAdminAuthHeader();
-  const res = await fetch('/api/admin-delete-business', {
+  const res = await fetch('/api/admin?action=delete-business', {
     method: 'POST',
     headers,
     body: JSON.stringify({ businessId, confirmBusinessName }),
@@ -134,7 +134,7 @@ export async function adminDeleteBusiness(
 export async function adminGetTodayUsage(): Promise<Record<string, number>> {
   try {
     const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
-    const res = await fetch(`/api/admin-get-usage?idToken=${encodeURIComponent(token)}`, {
+    const res = await fetch(`/api/admin?action=get-usage&idToken=${encodeURIComponent(token)}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

@@ -5,6 +5,10 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/admin-:action*",
+      "destination": "/api/admin?action=:action*"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

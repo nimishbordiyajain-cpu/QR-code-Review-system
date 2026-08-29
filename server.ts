@@ -162,7 +162,7 @@ function getGeminiClient(): GoogleGenAI | null {
   return geminiClient;
 }
 
-// 1. Health Check
+// Health Check
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
@@ -171,6 +171,18 @@ app.get('/api/health', (req: Request, res: Response) => {
     groqConfigured: Boolean(process.env.GROQ_API_KEY),
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
   });
+});
+
+// Admin Unified Dispatcher Middleware for /api/admin?action=...
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.path === '/api/admin') {
+    const rawAction = (req.query.action as string) || req.body?.action || (req.headers['x-admin-action'] as string) || '';
+    const action = rawAction.toLowerCase().replace(/^admin-/, '').trim();
+    if (action) {
+      req.url = `/api/admin-${action}`;
+    }
+  }
+  next();
 });
 
 // Admin Claims Synchronization Endpoint
