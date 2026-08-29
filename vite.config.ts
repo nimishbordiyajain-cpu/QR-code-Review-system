@@ -16,13 +16,21 @@ export default defineConfig(() => {
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
     build: {
-      chunkSizeWarningLimit: 1600,
+      chunkSizeWarningLimit: 2000,
       rollupOptions: {
         output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom'],
-            icons: ['lucide-react'],
-            firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) {
+                return 'vendor';
+              }
+              if (id.includes('lucide-react')) {
+                return 'icons';
+              }
+              if (id.includes('firebase') || id.includes('@firebase')) {
+                return 'firebase';
+              }
+            }
           },
         },
       },
