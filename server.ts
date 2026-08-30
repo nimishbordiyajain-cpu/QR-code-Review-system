@@ -4,7 +4,14 @@ import dotenv from 'dotenv';
 import Groq from 'groq-sdk';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
-import { getAdminAuth, getAdminFirestore, getAdminEmails, isEmailInAdminAllowlist, verifyAdminRequest } from './api/_lib/firebaseAdmin';
+import {
+  getAdminAuth,
+  getAdminFirestore,
+  getAdminEmails,
+  isEmailInAdminAllowlist,
+  verifyAdminRequest,
+  ensureAdminAccounts,
+} from './api/_lib/firebaseAdmin';
 
 dotenv.config();
 
@@ -1492,6 +1499,13 @@ async function startServer() {
     app.get('*', (req: Request, res: Response) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
+  }
+
+  // Auto-bootstrap and verify default administrator accounts
+  try {
+    await ensureAdminAccounts();
+  } catch (adminBootstrapErr) {
+    console.warn('[Server Startup] Admin bootstrap notice:', adminBootstrapErr);
   }
 
   app.listen(PORT, '0.0.0.0', () => {

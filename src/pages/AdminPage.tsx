@@ -9,11 +9,13 @@ import { AdminEditBusinessModal } from '../components/admin/AdminEditBusinessMod
 import { AdminResetPasswordModal } from '../components/admin/AdminResetPasswordModal';
 import { AdminDeleteBusinessModal } from '../components/admin/AdminDeleteBusinessModal';
 import { AdminWelcomeMessageModal } from '../components/admin/AdminWelcomeMessageModal';
+import { AdminRightsModal } from '../components/admin/AdminRightsModal';
 import { AdminEnquiriesView } from '../components/admin/AdminEnquiriesView';
 import { adminGetEnquiries, adminUpdateEnquiry } from '../services/enquiryService';
 import { AdminCreateBusinessInitialData } from '../components/admin/AdminCreateBusinessModal';
 import {
   ShieldAlert,
+  ShieldCheck,
   Search,
   ExternalLink,
   Edit2,
@@ -59,6 +61,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
 
   // Modal States
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showRightsModal, setShowRightsModal] = useState(false);
   const [createModalInitialData, setCreateModalInitialData] = useState<AdminCreateBusinessInitialData | undefined>(undefined);
   const [convertingEnquiryId, setConvertingEnquiryId] = useState<string | null>(null);
 
@@ -268,6 +271,14 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowRightsModal(true)}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs font-bold transition-all border border-indigo-500/30 flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Admin Rights</span>
+              </button>
+
               <button
                 onClick={() => {
                   setCreateModalInitialData(undefined);
@@ -704,6 +715,12 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
           onClose={() => setWelcomeKitBusiness(null)}
         />
       )}
+
+      {/* Modal 6: Super Admin Rights & Privileges Overview */}
+      <AdminRightsModal
+        isOpen={showRightsModal}
+        onClose={() => setShowRightsModal(false)}
+      />
     </div>
   );
 };

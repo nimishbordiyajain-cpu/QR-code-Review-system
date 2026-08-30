@@ -32,6 +32,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const ADMIN_ALLOWLIST = [
+  'admin@reviewai.com',
+  'nimishbordiyajain@gmail.com',
+  'admin@authenticreviews.com',
+];
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<BusinessUser | null>(null);
@@ -63,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const tokenResult = await auth.currentUser.getIdTokenResult(true);
-      const isClaimAdmin = Boolean(tokenResult.claims.admin);
+      const isClaimAdmin = Boolean(tokenResult.claims.admin) || (auth.currentUser.email ? ADMIN_ALLOWLIST.includes(auth.currentUser.email.toLowerCase()) : false);
       setIsAdmin(isClaimAdmin);
       return isClaimAdmin;
     } catch (err) {
@@ -88,12 +94,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setCurrentUser(user);
       if (user) {
         try {
-          // 1. Check custom claims for admin authorization
+          // 1. Check custom claims and email allowlist for admin authorization
           const tokenResult = await user.getIdTokenResult();
-          let isUserAdmin = Boolean(tokenResult.claims.admin);
+          const email = user.email ? user.email.toLowerCase() : '';
+          let isUserAdmin = Boolean(tokenResult.claims.admin) || ADMIN_ALLOWLIST.includes(email);
 
           // If claims not yet set, attempt claim synchronization with serverless endpoint
-          if (!isUserAdmin) {
+          if (!tokenResult.claims.admin && isUserAdmin) {
             try {
               const idToken = await user.getIdToken();
               const syncRes = await fetch('/api/sync-claims', {
@@ -106,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               });
               if (syncRes.ok) {
                 const refreshed = await user.getIdTokenResult(true);
-                isUserAdmin = Boolean(refreshed.claims.admin);
+                isUserAdmin = Boolean(refreshed.claims.admin) || ADMIN_ALLOWLIST.includes(email);
               }
             } catch (syncErr) {
               console.warn('Admin claim server sync warning:', syncErr);
