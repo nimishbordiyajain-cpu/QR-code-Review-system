@@ -93,7 +93,7 @@ export const AdminRightsModal: React.FC<AdminRightsModalProps> = ({ isOpen, onCl
                 </span>
               </h2>
               <p className="text-xs text-slate-400 font-mono mt-0.5">
-                Authenticated Admin: <span className="text-indigo-300">{currentUser?.email || 'admin@reviewai.com'}</span>
+                Authenticated Admin: <span className="text-indigo-300">{currentUser?.email || 'Super Administrator'}</span>
               </p>
             </div>
           </div>

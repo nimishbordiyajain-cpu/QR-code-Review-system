@@ -53,12 +53,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onOpenDemo, on
       }
 
       await login(cleanEmail, password);
-      const isAdminEmail = [
-        'admin@reviewai.com',
-        'nimishbordiyajain@gmail.com',
-        'admin@authenticreviews.com',
-      ].includes(cleanEmail.toLowerCase());
-      onNavigate(isAdminEmail ? 'admin' : 'dashboard');
+      onNavigate('dashboard');
     } catch (err: any) {
       console.error('Login error:', err);
       const code = err?.code || '';

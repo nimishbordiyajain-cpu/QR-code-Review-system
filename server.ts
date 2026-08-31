@@ -10,7 +10,6 @@ import {
   getAdminEmails,
   isEmailInAdminAllowlist,
   verifyAdminRequest,
-  ensureAdminAccounts,
 } from './api/_lib/firebaseAdmin';
 
 dotenv.config();
@@ -1499,13 +1498,6 @@ async function startServer() {
     app.get('*', (req: Request, res: Response) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
-  }
-
-  // Auto-bootstrap and verify default administrator accounts
-  try {
-    await ensureAdminAccounts();
-  } catch (adminBootstrapErr) {
-    console.warn('[Server Startup] Admin bootstrap notice:', adminBootstrapErr);
   }
 
   app.listen(PORT, '0.0.0.0', () => {
