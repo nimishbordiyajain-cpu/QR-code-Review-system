@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Sparkles, ArrowLeft, Mail, AlertCircle, CheckCircle2, UserPlus } from 'lucide-react';
+import { Sparkles, ArrowLeft, Mail, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface ForgotPasswordPageProps {
   onNavigate: (view: string) => void;
@@ -18,7 +18,6 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
   const [errorInfo, setErrorInfo] = useState<{
     code?: string;
     message: string;
-    action?: 'register' | 'login';
   } | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -51,8 +50,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
       if (code === 'auth/user-not-found' || errMsg.includes('auth/user-not-found')) {
         setErrorInfo({
           code: 'user-not-found',
-          message: `No account exists with "${cleanEmail}". Would you like to create an account?`,
-          action: 'register',
+          message: `No account exists with "${cleanEmail}". Please check your email or contact support if you need access.`,
         });
       } else if (code === 'auth/invalid-email' || errMsg.includes('auth/invalid-email')) {
         setErrorInfo({
@@ -100,19 +98,6 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
               <span className="font-medium leading-relaxed">{errorInfo.message}</span>
             </div>
-
-            {errorInfo.action === 'register' && (
-              <div className="pt-1.5 border-t border-rose-200/80 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => onNavigate('register')}
-                  className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] flex items-center gap-1 transition-colors shadow-2xs cursor-pointer"
-                >
-                  <UserPlus className="w-3 h-3" />
-                  <span>Create Account with this Email</span>
-                </button>
-              </div>
-            )}
           </div>
         )}
 

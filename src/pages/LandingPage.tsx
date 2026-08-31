@@ -530,9 +530,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     {simStep === 1 && (
                       <motion.div
                         key="step1"
-                        initial={shouldReduceMotion ? false : { opacity: 0, x: 16 }}
-                        animate={shouldReduceMotion ? false : { opacity: 1, x: 0 }}
-                        exit={shouldReduceMotion ? false : { opacity: 0, x: -16 }}
+                        initial={shouldReduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: 16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -16 }}
                         transition={{ duration: 0.25 }}
                         className="space-y-4 my-auto"
                       >
@@ -567,9 +567,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     {simStep === 2 && (
                       <motion.div
                         key="step2"
-                        initial={shouldReduceMotion ? false : { opacity: 0, x: 16 }}
-                        animate={shouldReduceMotion ? false : { opacity: 1, x: 0 }}
-                        exit={shouldReduceMotion ? false : { opacity: 0, x: -16 }}
+                        initial={shouldReduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: 16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -16 }}
                         transition={{ duration: 0.25 }}
                         className="space-y-4 my-auto"
                       >
@@ -626,9 +626,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     {simStep === 3 && (
                       <motion.div
                         key="step3"
-                        initial={shouldReduceMotion ? false : { opacity: 0, x: 16 }}
-                        animate={shouldReduceMotion ? false : { opacity: 1, x: 0 }}
-                        exit={shouldReduceMotion ? false : { opacity: 0, x: -16 }}
+                        initial={shouldReduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: 16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -16 }}
                         transition={{ duration: 0.25 }}
                         className="space-y-3.5"
                       >
