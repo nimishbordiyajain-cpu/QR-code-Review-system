@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Groq from 'groq-sdk';
 import { GoogleGenAI } from '@google/genai';
 import { checkRateLimit, getClientIp } from './_lib/rateLimiter';
-import { getAdminFirestore } from './_lib/firebaseAdmin';
+import { getAdminFirestore, getAdminAuth, isEmailInAdminAllowlist } from './_lib/firebaseAdmin';
 
 function sanitizeInputString(val: any, maxLength: number = 500): string {
   if (typeof val !== 'string') return '';
@@ -27,6 +27,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       error: 'Too many business insights requests. Please wait a minute before trying again.',
       retryAfterSeconds: rateLimit.resetInSeconds,
     });
+  }
+
+  const authHeader = req.headers.authorization;
+  let idToken = '';
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    idToken = authHeader.substring(7).trim();
+  }
+
+  if (!idToken) {
+    return res.status(401).json({ success: false, error: 'Unauthorized: Missing or invalid Authorization header.' });
+  }
+
+  let decodedToken;
+  try {
+    const adminAuth = getAdminAuth();
+    decodedToken = await adminAuth.verifyIdToken(idToken);
+  } catch (authErr) {
+    return res.status(401).json({ success: false, error: 'Unauthorized: Invalid token.' });
   }
 
   try {
@@ -58,6 +76,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const bizData = bizDoc.data();
+      const isAdmin = decodedToken.admin === true || isEmailInAdminAllowlist(decodedToken.email);
+      if (!isAdmin && bizData?.ownerId !== decodedToken.uid) {
+        return res.status(403).json({ success: false, error: 'Forbidden: You do not have access to this business.' });
+      }
       if (bizData?.status === 'disabled') {
         return res.status(403).json({
           success: false,

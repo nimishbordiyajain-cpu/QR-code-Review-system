@@ -106,7 +106,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({
       success: false,
       error: 'An error occurred while submitting your enquiry. Please try again.',
-      details: error?.message || String(error),
     });
   }
 }

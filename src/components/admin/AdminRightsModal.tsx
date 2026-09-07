@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -14,6 +14,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { auth } from '../../lib/firebase';
 
 interface AdminRightsModalProps {
   isOpen: boolean;
@@ -22,6 +23,29 @@ interface AdminRightsModalProps {
 
 export const AdminRightsModal: React.FC<AdminRightsModalProps> = ({ isOpen, onClose }) => {
   const { currentUser } = useAuth();
+  const [allowlist, setAllowlist] = useState<string[]>([]);
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchAdmins = async () => {
+        try {
+          const token = await auth.currentUser?.getIdToken();
+          const res = await fetch('/api/admin?action=get-admins', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (data.success) {
+            setAllowlist(data.allowlist || []);
+            setAdminUsers(data.adminUsers || []);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+      fetchAdmins();
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -145,6 +169,33 @@ export const AdminRightsModal: React.FC<AdminRightsModalProps> = ({ isOpen, onCl
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-slate-200">
+            <h3 className="font-bold text-slate-900 mb-2">Active Administrators</h3>
+            <div className="text-slate-600 mb-3 leading-relaxed">
+              Below are the users currently carrying the <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-800">admin: true</code> custom claim and the environment allowlist.
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+              <div className="mb-2">
+                <span className="font-semibold text-slate-700">Environment Allowlist:</span>
+                <ul className="list-disc pl-4 mt-1">
+                  {allowlist.length > 0 ? allowlist.map((email) => (
+                    <li key={email} className="text-indigo-600 font-mono">{email}</li>
+                  )) : <li className="text-slate-500 italic">None configured</li>}
+                </ul>
+              </div>
+              <div>
+                <span className="font-semibold text-slate-700">Provisioned Admins (Firestore):</span>
+                <ul className="list-disc pl-4 mt-1">
+                  {adminUsers.length > 0 ? adminUsers.map((u) => (
+                    <li key={u.id} className="text-slate-800 font-mono">
+                      {u.email} <span className="text-slate-400 text-[10px]">({u.displayName || 'No name'})</span>
+                    </li>
+                  )) : <li className="text-slate-500 italic">No admin users found</li>}
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
 

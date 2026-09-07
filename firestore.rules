@@ -140,6 +140,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Admin audit logs: server-side only
+    match /auditLogs/{logId} {
+      allow read, write: if false;
+    }
+
     // Rate limit persistent store: server-side only
     match /rateLimits/{limitId} {
       allow read, write: if false;

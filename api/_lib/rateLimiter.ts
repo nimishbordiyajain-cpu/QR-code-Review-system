@@ -9,15 +9,21 @@ interface WindowRecord {
 const memoryStore = new Map<string, WindowRecord>();
 
 export function getClientIp(headers: Record<string, string | string[] | undefined>, socketRemoteAddress?: string): string {
+  const vercelForwarded = headers['x-vercel-forwarded-for'];
+  if (typeof vercelForwarded === 'string' && vercelForwarded.trim()) {
+    return vercelForwarded.split(',')[0].trim();
+  }
+  
   const forwarded = headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') {
+  if (typeof forwarded === 'string' && forwarded.trim()) {
     return forwarded.split(',')[0].trim();
   }
-  if (Array.isArray(forwarded) && forwarded.length > 0) {
+  if (Array.isArray(forwarded) && forwarded.length > 0 && forwarded[0]) {
     return forwarded[0].trim();
   }
+  
   const realIp = headers['x-real-ip'];
-  if (typeof realIp === 'string') {
+  if (typeof realIp === 'string' && realIp.trim()) {
     return realIp.trim();
   }
   return socketRemoteAddress || '127.0.0.1';

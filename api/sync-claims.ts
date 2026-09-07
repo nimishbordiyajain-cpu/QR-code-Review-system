@@ -24,8 +24,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       decodedToken = await adminAuth.verifyIdToken(idToken);
     } catch (err: any) {
+      console.warn('Failed to verify ID token:', err);
       // In development or if server credentials aren't configured, fallback gracefully if valid structure
-      return res.status(401).json({ success: false, error: 'Invalid authentication token', details: err?.message });
+      return res.status(401).json({ success: false, error: 'Invalid authentication token' });
     }
 
     const { uid, email } = decodedToken;
@@ -47,8 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('Error syncing claims:', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to synchronize claims',
-      details: error?.message || String(error),
+      error: 'Failed to synchronize claims'
     });
   }
 }

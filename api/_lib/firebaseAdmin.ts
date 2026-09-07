@@ -61,7 +61,7 @@ export function isEmailInAdminAllowlist(email?: string | null): boolean {
   return adminList.includes(email.trim().toLowerCase());
 }
 
-export async function verifyAdminRequest(req: any): Promise<{ uid: string; email?: string } | null> {
+export async function verifyAdminRequest(req: any): Promise<{ uid: string; email?: string; auth_time: number; decoded: any } | null> {
   try {
     const authHeader = req.headers?.authorization;
     let idToken = '';
@@ -78,7 +78,7 @@ export async function verifyAdminRequest(req: any): Promise<{ uid: string; email
     const isCallerAdmin = decoded.admin === true || isEmailInAdminAllowlist(decoded.email);
     if (!isCallerAdmin) return null;
 
-    return { uid: decoded.uid, email: decoded.email };
+    return { uid: decoded.uid, email: decoded.email, auth_time: decoded.auth_time, decoded };
   } catch (err) {
     console.error('Error verifying admin request:', err);
     return null;

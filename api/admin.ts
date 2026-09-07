@@ -6,6 +6,13 @@ import {
   isEmailInAdminAllowlist,
   verifyAdminRequest,
 } from './_lib/firebaseAdmin';
+import { checkRateLimit } from './_lib/rateLimiter';
+
+/**
+ * Admin status is derived only from Firebase custom claims (`admin: true`) or `ADMIN_EMAILS`;
+ * there is no HTTP path to set the claim other than `sync-claims.ts`, which only ever sets it
+ * to match the allowlist, and `scripts/bootstrap-admin.ts`, which is CLI-only.
+ */
 
 function generateSlug(name: string): string {
   return name
@@ -36,90 +43,51 @@ async function generateUniqueAdminSlug(adminDb: any, name: string): Promise<stri
   return `${baseSlug}-${fallbackSuffix}`;
 }
 
+async function auditLog(adminDb: any, adminUid: string, actionName: string, details: any) {
+  try {
+    await adminDb.collection('auditLogs').add({
+      adminUid,
+      action: actionName,
+      details,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.warn('Failed to write audit log:', err);
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Determine action from query (e.g., ?action=create-business or vercel rewrite), body, or header
   const rawAction = (req.query.action as string) || req.body?.action || (req.headers['x-admin-action'] as string) || '';
   const action = rawAction.toLowerCase().replace(/^admin-/, '').trim();
 
   try {
-    switch (action) {
-      case 'bootstrap': {
-        const authHeader = req.headers.authorization;
-        let idToken = '';
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-          idToken = authHeader.substring(7).trim();
-        } else if (req.body && req.body.idToken) {
-          idToken = req.body.idToken;
-        }
+    const adminUser = await verifyAdminRequest(req);
+    if (!adminUser) {
+      return res.status(403).json({ success: false, error: 'Forbidden: Admin authorization required.' });
+    }
 
-        const targetEmail = req.body?.email || req.query?.email;
-        const adminAuth = getAdminAuth();
-        const adminEmails = getAdminEmails();
+    const rateLimit = await checkRateLimit(adminUser.uid, 'admin-action', 30, 60);
+    if (!rateLimit.allowed) {
+      return res.status(429).json({ success: false, error: 'Too many admin actions. Please slow down.' });
+    }
 
-        if (idToken) {
-          const decoded = await adminAuth.verifyIdToken(idToken);
-          const email = decoded.email?.toLowerCase();
-          const isAdmin = isEmailInAdminAllowlist(email);
-
-          await adminAuth.setCustomUserClaims(decoded.uid, {
-            admin: isAdmin,
-            provisionedByAdmin: true,
-          });
-
-          return res.status(200).json({
-            success: true,
-            uid: decoded.uid,
-            email: decoded.email,
-            adminClaimSet: isAdmin,
-            allowlist: adminEmails,
-          });
-        }
-
-        if (targetEmail && typeof targetEmail === 'string') {
-          const cleanEmail = targetEmail.trim().toLowerCase();
-          if (!isEmailInAdminAllowlist(cleanEmail)) {
-            return res.status(403).json({
-              success: false,
-              error: 'Email is not on the admin allowlist.',
-            });
-          }
-
-          const user = await adminAuth.getUserByEmail(cleanEmail);
-          await adminAuth.setCustomUserClaims(user.uid, {
-            admin: true,
-            provisionedByAdmin: true,
-          });
-
-          return res.status(200).json({
-            success: true,
-            uid: user.uid,
-            email: user.email,
-            adminClaimSet: true,
-            message: `Admin claim successfully granted to ${cleanEmail}`,
-          });
-        }
-
-        return res.status(400).json({
-          success: false,
-          error: 'Provide either an authorization idToken or a target admin email in the allowlist.',
-        });
+    if (['update-business', 'delete-business'].includes(action)) {
+      const now = Math.floor(Date.now() / 1000);
+      if (now - adminUser.auth_time > 15 * 60) {
+        return res.status(401).json({ success: false, error: 'Session too old for sensitive action. Please re-authenticate (max age 15 mins).' });
       }
+    }
 
+    const adminAuth = getAdminAuth();
+    const adminDb = getAdminFirestore();
+
+    switch (action) {
       case 'create-business': {
         if (req.method !== 'POST') {
           return res.status(405).json({ success: false, error: 'Method not allowed' });
         }
 
-        const adminUser = await verifyAdminRequest(req);
-        if (!adminUser) {
-          return res.status(403).json({
-            success: false,
-            error: 'Forbidden: Only designated super-administrators can provision new business accounts.',
-          });
-        }
 
-        const adminAuth = getAdminAuth();
-        const adminDb = getAdminFirestore();
 
         const {
           name: rawName,
@@ -256,6 +224,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           passwordResetLink = `${process.env.APP_URL || 'https://reviewflow.ai'}/forgot-password?email=${encodeURIComponent(cleanEmail)}`;
         }
 
+        await auditLog(adminDb, adminUser.uid, 'create-business', { businessId, email: cleanEmail });
         return res.status(200).json({
           success: true,
           message: 'Business account successfully created and provisioned.',
@@ -271,13 +240,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(405).json({ success: false, error: 'Method not allowed' });
         }
 
-        const adminUser = await verifyAdminRequest(req);
-        if (!adminUser) {
-          return res.status(403).json({
-            success: false,
-            error: 'Forbidden: Only authenticated administrators can update business configurations.',
-          });
-        }
 
         const {
           businessId: rawBizId,
@@ -337,6 +299,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         await bizRef.update(updates);
 
+        await auditLog(adminDb, adminUser.uid, 'update-business', { businessId, updates });
         return res.status(200).json({
           success: true,
           message: 'Business profile successfully updated by administrator.',
@@ -350,14 +313,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(405).json({ success: false, error: 'Method not allowed' });
         }
 
-        const adminUser = await verifyAdminRequest(req);
-        if (!adminUser) {
-          return res.status(403).json({
-            success: false,
-            error: 'Forbidden: Only authenticated administrators can generate credential reset links.',
-          });
-        }
-
         const { businessId: rawBizId, email: rawEmail } = req.body || {};
         const businessId = typeof rawBizId === 'string' ? rawBizId.trim() : '';
         const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : '';
@@ -366,8 +321,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(400).json({ success: false, error: 'Target owner email is required.' });
         }
 
-        const adminAuth = getAdminAuth();
-        const adminDb = getAdminFirestore();
+
 
         let passwordResetLink = '';
         try {
@@ -390,6 +344,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
 
+        await auditLog(adminDb, adminUser.uid, 'reset-password', { businessId, targetEmail: email });
         return res.status(200).json({
           success: true,
           message: 'New password-set link generated successfully.',
@@ -403,14 +358,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(405).json({ success: false, error: 'Method not allowed' });
         }
 
-        const adminUser = await verifyAdminRequest(req);
-        if (!adminUser) {
-          return res.status(403).json({
-            success: false,
-            error: 'Forbidden: Only authenticated administrators can deprovision and delete business accounts.',
-          });
-        }
-
         const { businessId: rawBizId, confirmBusinessName: rawConfirmName } = req.body || {};
         const businessId = typeof rawBizId === 'string' ? rawBizId.trim() : '';
 
@@ -418,8 +365,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(400).json({ success: false, error: 'Business ID is required.' });
         }
 
-        const adminAuth = getAdminAuth();
-        const adminDb = getAdminFirestore();
+
 
         const bizDocRef = adminDb.collection('businesses').doc(businessId);
         const bizSnap = await bizDocRef.get();
@@ -487,6 +433,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
 
+        await auditLog(adminDb, adminUser.uid, 'delete-business', { businessId, businessName });
         return res.status(200).json({
           success: true,
           message: `Business "${businessName}" (${businessId}) and all linked resources were permanently deprovisioned.`,
@@ -494,16 +441,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      case 'get-usage': {
-        const adminUser = await verifyAdminRequest(req);
-        if (!adminUser) {
-          return res.status(403).json({
-            success: false,
-            error: 'Forbidden: Admin authorization required.',
-          });
-        }
+      case 'get-admins': {
+        const envAdmins = getAdminEmails();
+        const usersSnap = await adminDb.collection('users').where('role', '==', 'admin').get();
+        const adminUsers: any[] = [];
+        usersSnap.forEach((doc) => {
+          adminUsers.push({ id: doc.id, ...doc.data() });
+        });
+        return res.status(200).json({ success: true, allowlist: envAdmins, adminUsers });
+      }
 
-        const adminDb = getAdminFirestore();
+      case 'get-usage': {
         const today = new Date().toISOString().split('T')[0];
 
         const usageSnap = await adminDb.collection('dailyUsage').where('date', '==', today).get();
@@ -524,15 +472,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       case 'get-enquiries': {
-        const adminUser = await verifyAdminRequest(req);
-        if (!adminUser) {
-          return res.status(403).json({
-            success: false,
-            error: 'Forbidden: Only authenticated administrators can view client enquiries.',
-          });
-        }
 
-        const adminDb = getAdminFirestore();
         const snapshot = await adminDb.collection('enquiries').orderBy('createdAt', 'desc').get();
 
         const enquiries: any[] = [];
@@ -554,13 +494,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(405).json({ success: false, error: 'Method not allowed' });
         }
 
-        const adminUser = await verifyAdminRequest(req);
-        if (!adminUser) {
-          return res.status(403).json({
-            success: false,
-            error: 'Forbidden: Only authenticated administrators can update enquiries.',
-          });
-        }
+
 
         const {
           enquiryId: rawEnquiryId,
@@ -574,7 +508,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(400).json({ success: false, error: 'Enquiry ID is required.' });
         }
 
-        const adminDb = getAdminFirestore();
+
         const docRef = adminDb.collection('enquiries').doc(enquiryId);
         const snap = await docRef.get();
 
@@ -604,6 +538,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         await docRef.update(updates);
 
+        await auditLog(adminDb, adminUser.uid, 'update-enquiry', { enquiryId, updates });
         return res.status(200).json({
           success: true,
           message: 'Enquiry updated successfully.',
@@ -615,7 +550,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       default:
         return res.status(400).json({
           success: false,
-          error: `Unknown admin action: "${rawAction}". Available actions: bootstrap, create-business, update-business, reset-password, delete-business, get-usage, get-enquiries, update-enquiry.`,
+          error: `Unknown admin action: "${rawAction}". Available actions: create-business, update-business, reset-password, delete-business, get-usage, get-enquiries, update-enquiry, get-admins.`,
         });
     }
   } catch (error: any) {

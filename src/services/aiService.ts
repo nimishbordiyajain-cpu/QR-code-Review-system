@@ -236,11 +236,17 @@ export async function fetchBusinessAIInsights(
   };
 
   try {
+    const token = await import('../lib/firebase').then(m => m.auth.currentUser?.getIdToken()).catch(() => '');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch('/api/business-insights', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         businessId,
         businessName,

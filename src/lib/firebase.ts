@@ -5,6 +5,10 @@ import { getAnalytics, isSupported } from 'firebase/analytics';
 import firebaseConfigJson from '../../firebase-applet-config.json';
 
 // Web app's Firebase configuration
+// NOTE: The hardcoded values below are a convenience default for immediate local dev
+// without configuring a .env. They connect to a shared Firebase project.
+// In any production deployment, you MUST override these via VITE_FIREBASE_* env vars
+// (and ensure the deployed Firestore rules exactly match the ones in this repo).
 export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCrfmEHemwrqbjXeGWHpFumcRJbeo4ua0U",
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "qr-app-8a24f.firebaseapp.com",

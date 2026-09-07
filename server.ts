@@ -252,77 +252,12 @@ async function generateUniqueAdminSlug(adminDb: any, name: string): Promise<stri
 }
 
 // Unified Admin API Dispatcher Endpoint (/api/admin?action=...)
-app.all(['/api/admin', '/api/admin-bootstrap'], async (req: Request, res: Response) => {
+app.all(['/api/admin'], async (req: Request, res: Response) => {
   let rawAction = (req.query.action as string) || req.body?.action || (req.headers['x-admin-action'] as string) || '';
-  if (!rawAction && req.path === '/api/admin-bootstrap') {
-    rawAction = 'bootstrap';
-  }
   const action = rawAction.toLowerCase().replace(/^admin-/, '').trim();
 
   try {
     switch (action) {
-      case 'bootstrap': {
-        const authHeader = req.headers.authorization;
-        let idToken = '';
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-          idToken = authHeader.substring(7).trim();
-        } else if (req.body && req.body.idToken) {
-          idToken = req.body.idToken;
-        }
-
-        const targetEmail = req.body?.email || req.query?.email;
-        const adminAuth = getAdminAuth();
-        const adminEmails = getAdminEmails();
-
-        if (idToken) {
-          const decoded = await adminAuth.verifyIdToken(idToken);
-          const email = decoded.email?.toLowerCase();
-          const isAdmin = isEmailInAdminAllowlist(email);
-
-          await adminAuth.setCustomUserClaims(decoded.uid, {
-            admin: isAdmin,
-            provisionedByAdmin: true,
-          });
-
-          return res.status(200).json({
-            success: true,
-            uid: decoded.uid,
-            email: decoded.email,
-            adminClaimSet: isAdmin,
-            allowlist: adminEmails,
-          });
-        }
-
-        if (targetEmail && typeof targetEmail === 'string') {
-          const cleanEmail = targetEmail.trim().toLowerCase();
-          if (!isEmailInAdminAllowlist(cleanEmail)) {
-            return res.status(403).json({
-              success: false,
-              error: 'Email is not on the admin allowlist.',
-            });
-          }
-
-          const user = await adminAuth.getUserByEmail(cleanEmail);
-          await adminAuth.setCustomUserClaims(user.uid, {
-            admin: true,
-            provisionedByAdmin: true,
-          });
-
-          return res.status(200).json({
-            success: true,
-            uid: user.uid,
-            email: user.email,
-            adminClaimSet: true,
-            message: `Admin claim successfully granted to ${cleanEmail}`,
-          });
-        }
-
-        return res.status(400).json({
-          success: false,
-          error: 'Provide either an authorization idToken or a target admin email in the allowlist.',
-        });
-      }
-
       case 'create-business': {
         if (req.method !== 'POST') {
           return res.status(405).json({ success: false, error: 'Method not allowed' });
