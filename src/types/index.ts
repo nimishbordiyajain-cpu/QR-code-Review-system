@@ -31,6 +31,7 @@ export type BusinessCategory =
   | 'Salon'
   | 'Beauty'
   | 'Hotel'
+  | 'Home Stay'
   | 'Boutique'
   | 'Retail'
   | 'Grocery'
