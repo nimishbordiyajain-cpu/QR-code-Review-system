@@ -57,9 +57,9 @@ export const AdminCreateBusinessModal: React.FC<AdminCreateBusinessModalProps> =
   const [ownerPhone, setOwnerPhone] = useState(initialData?.ownerPhone || initialData?.phone || '');
 
   const [planName, setPlanName] = useState('Standard');
-  const [dailyGenerationLimit, setDailyGenerationLimit] = useState(50);
+  const [dailyGenerationLimit, setDailyGenerationLimit] = useState<number | string>(50);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'quarterly' | 'yearly' | 'one-time'>('monthly');
-  const [amountPaid, setAmountPaid] = useState<number>(1999);
+  const [amountPaid, setAmountPaid] = useState<number | string>(1999);
   const [currency, setCurrency] = useState('INR');
   const [nextRenewalDate, setNextRenewalDate] = useState(defaultRenewalDate);
   const [adminNotes, setAdminNotes] = useState(initialData?.adminNotes || '');
@@ -339,7 +339,7 @@ export const AdminCreateBusinessModal: React.FC<AdminCreateBusinessModalProps> =
                   min="1"
                   max="1000"
                   value={dailyGenerationLimit}
-                  onChange={(e) => setDailyGenerationLimit(Number(e.target.value))}
+                  onChange={(e) => setDailyGenerationLimit(e.target.value)}
                   className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:bg-white focus:outline-indigo-600"
                 />
               </div>
@@ -352,7 +352,7 @@ export const AdminCreateBusinessModal: React.FC<AdminCreateBusinessModalProps> =
                   type="number"
                   min="0"
                   value={amountPaid}
-                  onChange={(e) => setAmountPaid(Number(e.target.value))}
+                  onChange={(e) => setAmountPaid(e.target.value)}
                   className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:bg-white focus:outline-indigo-600"
                 />
               </div>

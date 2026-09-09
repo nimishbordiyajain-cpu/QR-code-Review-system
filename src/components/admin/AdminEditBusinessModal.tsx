@@ -43,13 +43,13 @@ export const AdminEditBusinessModal: React.FC<AdminEditBusinessModalProps> = ({
   const [ownerPhone, setOwnerPhone] = useState(business.ownerPhone || '');
 
   const [planName, setPlanName] = useState(business.planName || 'Standard');
-  const [dailyGenerationLimit, setDailyGenerationLimit] = useState(
+  const [dailyGenerationLimit, setDailyGenerationLimit] = useState<number | string>(
     business.dailyGenerationLimit || 50
   );
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'quarterly' | 'yearly' | 'one-time'>(
     business.billingCycle || 'monthly'
   );
-  const [amountPaid, setAmountPaid] = useState<number>(business.amountPaid ?? 1999);
+  const [amountPaid, setAmountPaid] = useState<number | string>(business.amountPaid ?? 1999);
   const [currency, setCurrency] = useState(business.currency || 'INR');
   const [nextRenewalDate, setNextRenewalDate] = useState(
     business.nextRenewalDate ||
@@ -326,7 +326,7 @@ export const AdminEditBusinessModal: React.FC<AdminEditBusinessModalProps> = ({
                   min="1"
                   max="5000"
                   value={dailyGenerationLimit}
-                  onChange={(e) => setDailyGenerationLimit(Number(e.target.value))}
+                  onChange={(e) => setDailyGenerationLimit(e.target.value)}
                   className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:bg-white focus:outline-indigo-600"
                 />
               </div>
@@ -339,7 +339,7 @@ export const AdminEditBusinessModal: React.FC<AdminEditBusinessModalProps> = ({
                   type="number"
                   min="0"
                   value={amountPaid}
-                  onChange={(e) => setAmountPaid(Number(e.target.value))}
+                  onChange={(e) => setAmountPaid(e.target.value)}
                   className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:bg-white focus:outline-indigo-600"
                 />
               </div>
