@@ -49,7 +49,12 @@ export async function adminCreateBusiness(
     body: JSON.stringify(payload),
   });
 
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    throw new Error(`Server returned an invalid response (HTTP ${res.status}).`);
+  }
   if (!res.ok || !data.success) {
     throw new Error(data.error || 'Failed to create business profile.');
   }
@@ -85,7 +90,15 @@ export async function adminUpdateBusiness(payload: UpdateBusinessAdminPayload): 
     body: JSON.stringify(payload),
   });
 
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch (parseErr) {
+    const text = await res.text().catch(() => '');
+    console.error('Failed to parse admin API response as JSON:', text);
+    throw new Error(`Server returned an invalid response (HTTP ${res.status}). Please try again.`);
+  }
+
   if (!res.ok || !data.success) {
     throw new Error(data.error || 'Failed to update business configuration.');
   }
@@ -108,7 +121,12 @@ export async function adminResetPassword(
     body: JSON.stringify({ businessId, email }),
   });
 
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    throw new Error(`Server returned an invalid response (HTTP ${res.status}).`);
+  }
   if (!res.ok || !data.success) {
     throw new Error(data.error || 'Failed to generate credential reset link.');
   }
@@ -126,7 +144,12 @@ export async function adminDeleteBusiness(
     body: JSON.stringify({ businessId, confirmBusinessName }),
   });
 
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    throw new Error(`Server returned an invalid response (HTTP ${res.status}).`);
+  }
   if (!res.ok || !data.success) {
     throw new Error(data.error || 'Failed to delete business.');
   }
@@ -141,7 +164,12 @@ export async function adminGetTodayUsage(): Promise<Record<string, number>> {
       },
     });
     if (!res.ok) return {};
-    const data = await res.json();
+    let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    throw new Error(`Server returned an invalid response (HTTP ${res.status}).`);
+  }
     return data.usage || {};
   } catch (err) {
     console.warn('Could not fetch daily usage metrics:', err);
