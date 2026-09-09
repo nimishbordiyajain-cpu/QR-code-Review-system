@@ -12,6 +12,7 @@ async function getAdminAuthHeader(): Promise<HeadersInit> {
 export interface CreateBusinessAdminPayload {
   name: string;
   ownerName: string;
+  password?: string;
   ownerPhone?: string;
   email: string;
   password?: string;

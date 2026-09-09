@@ -41,6 +41,7 @@ export const AdminEditBusinessModal: React.FC<AdminEditBusinessModalProps> = ({
   const [ownerName, setOwnerName] = useState(business.ownerName || '');
   const [email, setEmail] = useState(business.email || '');
   const [ownerPhone, setOwnerPhone] = useState(business.ownerPhone || '');
+  const [password, setPassword] = useState("");
 
   const [planName, setPlanName] = useState(business.planName || 'Standard');
   const [dailyGenerationLimit, setDailyGenerationLimit] = useState<number | string>(
@@ -77,6 +78,7 @@ export const AdminEditBusinessModal: React.FC<AdminEditBusinessModalProps> = ({
         ownerName: ownerName.trim(),
         ownerPhone: ownerPhone.trim(),
         email: email.trim().toLowerCase(),
+        password: password.trim() || undefined,
         phone: phone.trim(),
         category,
         address: address.trim(),
@@ -279,6 +281,19 @@ export const AdminEditBusinessModal: React.FC<AdminEditBusinessModalProps> = ({
                   value={ownerPhone}
                   onChange={(e) => setOwnerPhone(e.target.value)}
                   className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:bg-white focus:outline-indigo-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Change Password <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter new password to change"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:bg-white focus:outline-indigo-600 placeholder:text-slate-400"
                 />
               </div>
             </div>

@@ -307,6 +307,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         await bizRef.update(updates);
 
+        if (typeof rawPassword === 'string' && rawPassword.trim().length >= 6) {
+          try {
+            const bizData = bizSnap.data();
+            if (bizData && bizData.email) {
+              const userRecord = await adminAuth.getUserByEmail(bizData.email);
+              await adminAuth.updateUser(userRecord.uid, { password: rawPassword.trim() });
+            }
+          } catch (pwdErr) {
+            console.warn('Failed to update user password in update-business:', pwdErr);
+          }
+        }
+
         await auditLog(adminDb, adminUser.uid, 'update-business', { businessId, updates });
         return res.status(200).json({
           success: true,
