@@ -27,6 +27,7 @@ const CATEGORIES: BusinessCategory[] = [
   'Salon',
   'Beauty',
   'Hotel',
+  'Homestay',
   'Boutique',
   'Retail',
   'Grocery',
