@@ -16,7 +16,7 @@ export interface AdminCreateBusinessInitialData {
 
 interface AdminCreateBusinessModalProps {
   onClose: () => void;
-  onSuccess: (business: BusinessProfile, passwordResetLink?: string) => void;
+  onSuccess: (business: BusinessProfile, passwordResetLink?: string, rawPassword?: string) => void;
   initialData?: AdminCreateBusinessInitialData;
 }
 
@@ -55,6 +55,7 @@ export const AdminCreateBusinessModal: React.FC<AdminCreateBusinessModalProps> =
   const [ownerName, setOwnerName] = useState(initialData?.ownerName || '');
   const [email, setEmail] = useState(initialData?.email || '');
   const [ownerPhone, setOwnerPhone] = useState(initialData?.ownerPhone || initialData?.phone || '');
+  const [password, setPassword] = useState("");
 
   const [planName, setPlanName] = useState('Standard');
   const [dailyGenerationLimit, setDailyGenerationLimit] = useState<number | string>(50);
@@ -91,6 +92,7 @@ export const AdminCreateBusinessModal: React.FC<AdminCreateBusinessModalProps> =
         ownerName: ownerName.trim(),
         ownerPhone: ownerPhone.trim(),
         email: email.trim().toLowerCase(),
+        password: password.trim() || undefined,
         phone: phone.trim(),
         category,
         address: address.trim(),
@@ -106,7 +108,7 @@ export const AdminCreateBusinessModal: React.FC<AdminCreateBusinessModalProps> =
       });
 
       if (res.business) {
-        onSuccess(res.business, res.passwordResetLink);
+        onSuccess(res.business, res.passwordResetLink, password.trim());
       }
     } catch (err: any) {
       console.error('Failed to provision client business:', err);
@@ -286,6 +288,20 @@ export const AdminCreateBusinessModal: React.FC<AdminCreateBusinessModalProps> =
                   placeholder="e.g. +91 98450 11223"
                   value={ownerPhone}
                   onChange={(e) => setOwnerPhone(e.target.value)}
+                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:bg-white focus:outline-indigo-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Owner Password
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Set initial password (min 6 chars)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 focus:bg-white focus:outline-indigo-600"
                 />
               </div>

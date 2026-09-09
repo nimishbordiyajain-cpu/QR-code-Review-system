@@ -5,12 +5,14 @@ import { BusinessProfile } from '../../types';
 interface AdminWelcomeMessageModalProps {
   business: BusinessProfile;
   passwordResetLink?: string;
+  rawPassword?: string;
   onClose: () => void;
 }
 
 export const AdminWelcomeMessageModal: React.FC<AdminWelcomeMessageModalProps> = ({
   business,
   passwordResetLink,
+  rawPassword,
   onClose,
 }) => {
   const [copiedTemplate, setCopiedTemplate] = useState(false);
@@ -22,13 +24,17 @@ export const AdminWelcomeMessageModal: React.FC<AdminWelcomeMessageModalProps> =
   const reviewPageUrl = `${origin}/review/${business.slug}`;
   const effectiveResetLink = passwordResetLink || `${origin}/forgot-password?email=${encodeURIComponent(business.email || '')}`;
 
+  const authInstructions = rawPassword
+    ? `Password: ${rawPassword}\n\n(We strongly recommend changing your password after logging in for the first time).`
+    : `Set your password here (link expires in 3 days): ${effectiveResetLink}`;
+
   const welcomeMessage = `Hi ${business.ownerName || 'there'},
 
 Your ReviewFlow AI account for ${business.name} is ready!
 
 Login here: ${loginUrl}
-Your email: ${business.email || ''}
-Set your password here (link expires in 3 days): ${effectiveResetLink}
+Email: ${business.email || ''}
+${authInstructions}
 
 Your public review page: ${reviewPageUrl}
 
@@ -102,25 +108,25 @@ Let me know if you need anything!`;
               </div>
             </div>
 
-            {/* Password Set Link */}
+            {/* Password Info */}
             <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
-                  <KeyRound className="w-3 h-3 text-amber-600" /> Password Setup Link
+                  <KeyRound className="w-3 h-3 text-amber-600" /> {rawPassword ? 'Initial Password' : 'Password Setup Link'}
                 </span>
-                <span className="text-[10px] text-amber-700 font-semibold">Valid 3 days</span>
+                {!rawPassword && <span className="text-[10px] text-amber-700 font-semibold">Valid 3 days</span>}
               </div>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
                   readOnly
-                  value={effectiveResetLink}
+                  value={rawPassword || effectiveResetLink}
                   className="w-full text-xs font-mono bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 select-all truncate"
                 />
                 <button
-                  onClick={() => copyToClipboard(effectiveResetLink, setCopiedLink)}
+                  onClick={() => copyToClipboard(rawPassword || effectiveResetLink, setCopiedLink)}
                   className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 shrink-0"
-                  title="Copy Password Setup Link"
+                  title="Copy"
                 >
                   {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>

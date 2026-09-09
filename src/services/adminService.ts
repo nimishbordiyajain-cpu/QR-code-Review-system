@@ -14,6 +14,7 @@ export interface CreateBusinessAdminPayload {
   ownerName: string;
   ownerPhone?: string;
   email: string;
+  password?: string;
   phone?: string;
   category: string;
   address?: string;

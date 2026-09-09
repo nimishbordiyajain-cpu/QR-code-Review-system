@@ -95,6 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ownerPhone: rawOwnerPhone,
           email: rawEmail,
           phone: rawPhone,
+          password: rawPassword,
           category: rawCategory,
           address: rawAddress,
           googleReviewUrl: rawGoogleReviewUrl,
@@ -143,17 +144,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
         }
 
+        const cleanPassword = typeof rawPassword === 'string' && rawPassword.length >= 6 ? rawPassword : null;
+
         let userRecord;
         try {
           userRecord = await adminAuth.createUser({
             email: cleanEmail,
             displayName: cleanOwnerName || cleanName,
-            emailVerified: false,
+            emailVerified: true,
             disabled: false,
+            ...(cleanPassword ? { password: cleanPassword } : {}),
           });
         } catch (createErr: any) {
           if (createErr?.code === 'auth/email-already-exists') {
             userRecord = await adminAuth.getUserByEmail(cleanEmail);
+            if (cleanPassword) {
+              await adminAuth.updateUser(userRecord.uid, { password: cleanPassword });
+            }
           } else {
             console.error('Error creating user in Firebase Auth:', createErr);
             return res.status(500).json({
@@ -248,6 +255,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ownerPhone: rawOwnerPhone,
           email: rawEmail,
           phone: rawPhone,
+          password: rawPassword,
           category: rawCategory,
           address: rawAddress,
           googleReviewUrl: rawGoogleReviewUrl,

@@ -71,6 +71,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
   const [welcomeKitBusiness, setWelcomeKitBusiness] = useState<{
     business: BusinessProfile;
     passwordResetLink?: string;
+    rawPassword?: string;
   } | null>(null);
 
   // Toast feedback state
@@ -657,6 +658,7 @@ export const AdminPage: React.FC<AdminPageProps> = () => {
             setWelcomeKitBusiness({
               business: createdBiz,
               passwordResetLink: resetLink,
+              rawPassword,
             });
             loadAdminData();
           }}
