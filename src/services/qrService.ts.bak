@@ -51,7 +51,7 @@ export async function getQRCodesByBusiness(businessId: string): Promise<QRCodeIt
       where('businessId', '==', businessId)
     );
     const snap = await getDocs(q);
-    const items = snap.docs.map((d) => ({ ...d.data(), id: d.id }) as QRCodeItem);
+    const items = snap.docs.map((d) => d.data() as QRCodeItem);
     return items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   } catch (error) {
     console.error('Error fetching QR codes:', error);

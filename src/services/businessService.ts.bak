@@ -161,7 +161,7 @@ export async function updateBusinessProfile(
 export async function getAllBusinesses(): Promise<BusinessProfile[]> {
   try {
     const snap = await getDocs(collection(db, 'businesses'));
-    return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as BusinessProfile);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as BusinessProfile);
   } catch (error) {
     console.error('Error fetching all businesses:', error);
     return [];

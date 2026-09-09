@@ -88,7 +88,7 @@ export async function getFeedbackByBusiness(businessId: string): Promise<Custome
       where('businessId', '==', businessId)
     );
     const snap = await getDocs(q);
-    const items = snap.docs.map((d) => ({ ...d.data(), id: d.id }) as CustomerFeedback);
+    const items = snap.docs.map((d) => d.data() as CustomerFeedback);
     return items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   } catch (error) {
     console.error('Error fetching feedback:', error);
