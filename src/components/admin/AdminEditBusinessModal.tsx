@@ -94,8 +94,12 @@ export const AdminEditBusinessModal: React.FC<AdminEditBusinessModalProps> = ({
 
       onSuccess();
     } catch (err: any) {
-      console.error('Failed to update business:', err);
-      setError(err?.message || 'Failed to update business profile.');
+      console.error('Failed to update business configuration:', err);
+      if (err?.message?.includes('expected pattern') || err?.message?.includes('InvalidCharacterError')) {
+        setError('Your admin session token is corrupted. Please log out and log back in to continue.');
+      } else {
+        setError(err?.message || 'Failed to update business configuration.');
+      }
     } finally {
       setLoading(false);
     }

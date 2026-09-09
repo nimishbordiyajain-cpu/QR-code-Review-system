@@ -34,7 +34,7 @@ export const AdminDeleteBusinessModal: React.FC<AdminDeleteBusinessModalProps> =
       onSuccess();
     } catch (err: any) {
       console.error('Failed to delete business:', err);
-      setError(err?.message || 'Failed to permanently delete business account.');
+      if (err?.message?.includes('expected pattern') || err?.message?.includes('InvalidCharacterError')) { setError('Your admin session token is corrupted. Please log out and log back in to continue.'); } else { setError(err?.message || 'Failed to permanently delete business account.'); }
     } finally {
       setLoading(false);
     }
