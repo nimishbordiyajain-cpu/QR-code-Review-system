@@ -110,7 +110,11 @@ export const AdminCreateBusinessModal: React.FC<AdminCreateBusinessModalProps> =
       }
     } catch (err: any) {
       console.error('Failed to provision client business:', err);
-      setError(err?.message || 'Failed to provision client business.');
+      if (err?.message?.includes('expected pattern') || err?.message?.includes('InvalidCharacterError')) {
+        setError('Your admin session token is corrupted. Please log out and log back in to continue.');
+      } else {
+        setError(err?.message || 'Failed to provision client business.');
+      }
     } finally {
       setLoading(false);
     }
