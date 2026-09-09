@@ -231,7 +231,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           businessId,
           uid: newUid,
           passwordResetLink,
-          business: businessData,
+          business: { id: businessId, ...businessData },
         });
       }
 
