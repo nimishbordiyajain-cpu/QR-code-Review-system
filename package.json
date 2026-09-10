@@ -14,6 +14,9 @@
   "engines": {
     "node": "24.x"
   },
+  "overrides": {
+    "jose": "4.15.9"
+  },
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",
