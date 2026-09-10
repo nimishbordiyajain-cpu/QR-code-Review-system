@@ -1,4 +1,4 @@
-import { getAdminFirestore } from './firebaseAdmin';
+import { getAdminFirestore } from './firebaseAdmin.js';
 
 // In-memory sliding window fallback
 interface WindowRecord {

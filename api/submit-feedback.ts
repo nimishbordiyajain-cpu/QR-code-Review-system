@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminFirestore } from './_lib/firebaseAdmin';
-import { checkRateLimit, getClientIp } from './_lib/rateLimiter';
+import { getAdminFirestore } from './_lib/firebaseAdmin.js';
+import { checkRateLimit, getClientIp } from './_lib/rateLimiter.js';
 
 function sanitizeInputString(val: any, maxLength: number = 500): string {
   if (typeof val !== 'string') return '';

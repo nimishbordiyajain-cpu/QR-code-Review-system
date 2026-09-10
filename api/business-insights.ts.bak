@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Groq from 'groq-sdk';
 import { GoogleGenAI } from '@google/genai';
 import { checkRateLimit, getClientIp } from './_lib/rateLimiter';
-import { getAdminFirestore, getAdminAuth, isEmailInAdminAllowlist } from './_lib/firebaseAdmin';
+import { getAdminFirestore, getAdminAuth, isEmailInAdminAllowlist } from './_lib/firebaseAdmin.js';
 
 function sanitizeInputString(val: any, maxLength: number = 500): string {
   if (typeof val !== 'string') return '';
@@ -41,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let decodedToken;
   try {
-    const adminAuth = getAdminAuth();
+    const adminAuth = await getAdminAuth();
     decodedToken = await adminAuth.verifyIdToken(idToken);
   } catch (authErr) {
     return res.status(401).json({ success: false, error: 'Unauthorized: Invalid token.' });

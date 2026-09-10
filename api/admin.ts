@@ -5,8 +5,8 @@ import {
   getAdminEmails,
   isEmailInAdminAllowlist,
   verifyAdminRequest,
-} from './_lib/firebaseAdmin';
-import { checkRateLimit } from './_lib/rateLimiter';
+} from './_lib/firebaseAdmin.js';
+import { checkRateLimit } from './_lib/rateLimiter.js';
 
 /**
  * Admin status is derived only from Firebase custom claims (`admin: true`) or `ADMIN_EMAILS`;

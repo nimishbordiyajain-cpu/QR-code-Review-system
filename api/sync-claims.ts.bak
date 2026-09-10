@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAdminAuth, isEmailInAdminAllowlist } from './_lib/firebaseAdmin';
+import { getAdminAuth, isEmailInAdminAllowlist } from './_lib/firebaseAdmin.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ success: false, error: 'Missing authentication token' });
     }
 
-    const adminAuth = getAdminAuth();
+    const adminAuth = await getAdminAuth();
     let decodedToken;
     try {
       decodedToken = await adminAuth.verifyIdToken(idToken);

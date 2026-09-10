@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Groq from 'groq-sdk';
 import { GoogleGenAI } from '@google/genai';
-import { checkRateLimit, getClientIp } from './_lib/rateLimiter';
-import { getAdminFirestore } from './_lib/firebaseAdmin';
+import { checkRateLimit, getClientIp } from './_lib/rateLimiter.js';
+import { getAdminFirestore } from './_lib/firebaseAdmin.js';
 
 function sanitizeInputString(val: any, maxLength: number = 500): string {
   if (typeof val !== 'string') return '';

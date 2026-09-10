@@ -5,7 +5,7 @@ import {
   getAdminEmails,
   isEmailInAdminAllowlist,
   verifyAdminRequest,
-} from './_lib/firebaseAdmin';
+} from './_lib/firebaseAdmin.js';
 import { checkRateLimit } from './_lib/rateLimiter';
 
 /**
@@ -79,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const adminAuth = await getAdminAuth();
-    const adminDb = getAdminFirestore();
+    const adminDb = await getAdminFirestore();
 
     switch (action) {
       case 'create-business': {
@@ -275,7 +275,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(400).json({ success: false, error: 'Business ID is required.' });
         }
 
-        const adminDb = getAdminFirestore();
+        const adminDb = await getAdminFirestore();
         const bizRef = adminDb.collection('businesses').doc(businessId);
         const bizSnap = await bizRef.get();
 
