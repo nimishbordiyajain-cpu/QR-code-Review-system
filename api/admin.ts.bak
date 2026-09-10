@@ -79,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const adminAuth = await getAdminAuth();
-    const adminDb = await getAdminFirestore();
+    const adminDb = getAdminFirestore();
 
     switch (action) {
       case 'create-business': {
@@ -275,7 +275,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(400).json({ success: false, error: 'Business ID is required.' });
         }
 
-        const adminDb = await getAdminFirestore();
+        const adminDb = getAdminFirestore();
         const bizRef = adminDb.collection('businesses').doc(businessId);
         const bizSnap = await bizRef.get();
 

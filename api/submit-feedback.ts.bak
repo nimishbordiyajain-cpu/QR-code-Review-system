@@ -65,7 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const adminDb = await getAdminFirestore();
+    const adminDb = getAdminFirestore();
 
     // 3. Verify business exists and is active
     const bizDoc = await adminDb.collection('businesses').doc(businessId).get();

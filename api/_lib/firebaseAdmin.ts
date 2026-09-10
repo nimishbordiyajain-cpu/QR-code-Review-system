@@ -1,12 +1,11 @@
-import { getApps, initializeApp, cert, App } from 'firebase-admin/app';
-import { getAuth, Auth } from 'firebase-admin/auth';
-import { getFirestore, Firestore } from 'firebase-admin/firestore';
+// Dynamic imports to prevent Vercel ESM bundling errors with native modules
 
-let adminApp: App | null = null;
+let adminApp: any = null;
 
-export function getFirebaseAdminApp(): App {
+export async function getFirebaseAdminApp(): Promise<any> {
   if (adminApp) return adminApp;
 
+  const { getApps, initializeApp, cert } = await import('firebase-admin/app');
   const apps = getApps();
   if (apps.length > 0) {
     adminApp = apps[0];
@@ -33,13 +32,15 @@ export function getFirebaseAdminApp(): App {
   return adminApp;
 }
 
-export function getAdminAuth(): Auth {
-  const app = getFirebaseAdminApp();
+export async function getAdminAuth(): Promise<any> {
+  const app = await getFirebaseAdminApp();
+  const { getAuth } = await import('firebase-admin/auth');
   return getAuth(app);
 }
 
-export function getAdminFirestore(): Firestore {
-  const app = getFirebaseAdminApp();
+export async function getAdminFirestore(): Promise<any> {
+  const app = await getFirebaseAdminApp();
+  const { getFirestore } = await import('firebase-admin/firestore');
   return getFirestore(app);
 }
 
@@ -73,7 +74,7 @@ export async function verifyAdminRequest(req: any): Promise<{ uid: string; email
 
     if (!idToken) return null;
 
-    const adminAuth = getAdminAuth();
+    const adminAuth = await getAdminAuth();
     const decoded = await adminAuth.verifyIdToken(idToken);
     const isCallerAdmin = decoded.admin === true || isEmailInAdminAllowlist(decoded.email);
     if (!isCallerAdmin) return null;
@@ -84,4 +85,3 @@ export async function verifyAdminRequest(req: any): Promise<{ uid: string; email
     return null;
   }
 }
-

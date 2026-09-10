@@ -92,7 +92,7 @@ export async function checkRateLimit(
 
   // 2. Try Firestore Admin Persistence
   try {
-    const firestore = await getAdminFirestore();
+    const firestore = getAdminFirestore();
     if (firestore) {
       const docRef = firestore.collection('rateLimits').doc(key);
       const snapshot = await docRef.get();

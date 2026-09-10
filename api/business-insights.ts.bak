@@ -41,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let decodedToken;
   try {
-    const adminAuth = await getAdminAuth();
+    const adminAuth = getAdminAuth();
     decodedToken = await adminAuth.verifyIdToken(idToken);
   } catch (authErr) {
     return res.status(401).json({ success: false, error: 'Unauthorized: Invalid token.' });

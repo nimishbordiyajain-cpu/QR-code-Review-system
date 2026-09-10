@@ -73,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ success: false, error: 'Contact phone number is required.' });
     }
 
-    const adminDb = await getAdminFirestore();
+    const adminDb = getAdminFirestore();
     const enquiryDocRef = adminDb.collection('enquiries').doc();
     const enquiryId = enquiryDocRef.id;
     const nowIso = new Date().toISOString();
