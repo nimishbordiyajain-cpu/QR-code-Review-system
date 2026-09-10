@@ -62,7 +62,7 @@ export function isEmailInAdminAllowlist(email?: string | null): boolean {
   return adminList.includes(email.trim().toLowerCase());
 }
 
-export async function verifyAdminRequest(req: any): Promise<{ uid: string; email?: string; auth_time: number; decoded: any } | null> {
+export async function verifyAdminRequest(req: any): Promise<{ uid: string; email?: string; auth_time: number; decoded: any, debugError?: string } | null> {
   try {
     const authHeader = req.headers?.authorization;
     let idToken = '';
@@ -72,16 +72,22 @@ export async function verifyAdminRequest(req: any): Promise<{ uid: string; email
       idToken = req.body.idToken;
     }
 
-    if (!idToken) return null;
+    if (!idToken) return { debugError: 'No token provided in headers or body' } as any;
 
     const adminAuth = await getAdminAuth();
-    const decoded = await adminAuth.verifyIdToken(idToken);
+    let decoded;
+    try {
+      decoded = await adminAuth.verifyIdToken(idToken);
+    } catch (verifyErr: any) {
+      return { debugError: `Token verification failed: ${verifyErr.message} (code: ${verifyErr.code})` } as any;
+    }
+    
     const isCallerAdmin = decoded.admin === true || isEmailInAdminAllowlist(decoded.email);
-    if (!isCallerAdmin) return null;
+    if (!isCallerAdmin) return { debugError: `Token verified but user is not admin. decoded.admin=${decoded.admin}, email=${decoded.email}` } as any;
 
     return { uid: decoded.uid, email: decoded.email, auth_time: decoded.auth_time, decoded };
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error verifying admin request:', err);
-    return null;
+    return { debugError: `Global catch error: ${err.message}` } as any;
   }
 }

@@ -62,8 +62,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const adminUser = await verifyAdminRequest(req);
-    if (!adminUser) {
-      return res.status(403).json({ success: false, error: 'Forbidden: Admin authorization required.' });
+    if (!adminUser || adminUser.debugError) {
+      return res.status(403).json({ 
+        success: false, 
+        error: `Forbidden: Admin authorization required. Details: ${adminUser?.debugError || 'unknown'}` 
+      });
     }
 
     const rateLimit = await checkRateLimit(adminUser.uid, 'admin-action', 30, 60);
